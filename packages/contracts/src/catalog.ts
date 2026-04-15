@@ -1,43 +1,59 @@
 import * as v from 'valibot';
-import { PriceMinorSchema, VendorIdSchema } from './common.js';
+import {
+  PriceMinorSchema,
+  VendorIdSchema,
+  PaginationBaseSchema,
+  SortItemSchema,
+  envelope,
+} from './common.js';
 
 export const SearchModeSchema = v.picklist(['keyword', 'semantic', 'hybrid'] as const);
-export type SearchMode = v.InferOutput<typeof SearchModeSchema>;
 
-export const SearchItemsQuerySchema = v.object({
-  q: v.pipe(v.string(), v.minLength(1)),
-  vendor: v.optional(VendorIdSchema),
-  mode: v.optional(SearchModeSchema, 'hybrid'),
-  limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(500)), 50),
-});
-export type SearchItemsQuery = v.InferOutput<typeof SearchItemsQuerySchema>;
-
-export const ItemResultSchema = v.object({
-  id: v.string(),
-  vendor: VendorIdSchema,
-  venueSlug: v.string(),
-  venueName: v.string(),
-  name: v.string(),
+export const ItemSchema = v.object({
+  id:          v.string(),
+  slug:        v.string(),
+  vendor:      VendorIdSchema,
+  storeId:     v.string(),
+  storeSlug:   v.string(),
+  storeName:   v.string(),
+  name:        v.string(),
   description: v.optional(v.string()),
-  priceMinor: PriceMinorSchema,
-  currency: v.string(),
-  gtin: v.optional(v.string()),
-  imageUrl: v.optional(v.string()),
-  score: v.optional(v.number()),
+  priceMinor:  PriceMinorSchema,
+  currency:    v.string(),
+  gtin:        v.optional(v.string()),
+  imageUrl:    v.optional(v.string()),
+  available:   v.boolean(),
+  score:       v.optional(v.number()),
 });
-export type ItemResult = v.InferOutput<typeof ItemResultSchema>;
 
-export const SearchItemsResponseSchema = v.object({
-  items: v.array(ItemResultSchema),
-  mode: SearchModeSchema,
+export const ItemSortFields = ['name', 'priceMinor', 'relevance'] as const;
+
+export const ItemQueryBodySchema = v.object({
+  ...PaginationBaseSchema.entries,
+  sort:             v.optional(v.array(SortItemSchema(ItemSortFields))),
+  mode:             v.optional(SearchModeSchema),
+  vendor:           v.optional(VendorIdSchema),
+  storeIdOrSlug:    v.optional(v.string()),
+  categoryIdOrSlug: v.optional(v.string()),
+  minPriceMinor:    v.optional(PriceMinorSchema),
+  maxPriceMinor:    v.optional(PriceMinorSchema),
+  available:        v.optional(v.boolean()),
 });
-export type SearchItemsResponse = v.InferOutput<typeof SearchItemsResponseSchema>;
+
+export const ItemQueryResponseSchema = envelope(ItemSchema);
+export const GetItemResponseSchema   = v.object({ item: ItemSchema });
 
 export const CatalogStatsResponseSchema = v.object({
-  venues: v.number(),
-  categories: v.number(),
-  items: v.number(),
-  itemsWithEmbedding: v.number(),
-  venuesWithAssortment: v.number(),
+  stores:               v.number(),
+  categories:           v.number(),
+  items:                v.number(),
+  itemsWithEmbedding:   v.number(),
+  storesWithAssortment: v.number(),
 });
+
+export type SearchMode = v.InferOutput<typeof SearchModeSchema>;
+export type Item = v.InferOutput<typeof ItemSchema>;
+export type ItemQueryBody = v.InferOutput<typeof ItemQueryBodySchema>;
+export type ItemQueryResponse = v.InferOutput<typeof ItemQueryResponseSchema>;
+export type GetItemResponse = v.InferOutput<typeof GetItemResponseSchema>;
 export type CatalogStatsResponse = v.InferOutput<typeof CatalogStatsResponseSchema>;
