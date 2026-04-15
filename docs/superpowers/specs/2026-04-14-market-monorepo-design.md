@@ -9,7 +9,7 @@
 ## 1. Repository Layout
 
 ```
-wolt_mcp/                          (repo root — rename later)
+market_mcp/                        (repo root)
 ├── apps/
 │   ├── web/                       Vite + React + TS + Tailwind
 │   ├── api/                       Fastify + Drizzle + Postgres + Valibot
