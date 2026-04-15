@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@market/contracts": "workspace:*",
+    "@market/env": "workspace:*",
     "@market/ui": "workspace:*",
     "@tanstack/react-query": "^5.60.2",
     "@tanstack/react-router": "^1.83.0",

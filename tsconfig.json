@@ -9,6 +9,7 @@
     { "path": "./packages/vendors/europroduct" },
     { "path": "./packages/vendors/goodwill" },
     { "path": "./packages/contracts" },
+    { "path": "./packages/env" },
     { "path": "./packages/ui" },
     { "path": "./apps/api" },
     { "path": "./apps/mcp" },

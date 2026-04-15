@@ -10,6 +10,7 @@ export default [
         { type: 'vendor', pattern: 'packages/vendors/*' },
         { type: 'contracts', pattern: 'packages/contracts' },
         { type: 'ui', pattern: 'packages/ui' },
+        { type: 'env', pattern: 'packages/env' },
         { type: 'config', pattern: 'packages/config' },
       ],
       'boundaries/include': ['apps/**/*', 'packages/**/*'],
@@ -21,11 +22,12 @@ export default [
         {
           default: 'disallow',
           rules: [
-            { from: 'app', allow: ['contracts', 'ui', 'vendor', 'vendor-core', 'config'] },
+            { from: 'app', allow: ['contracts', 'ui', 'vendor', 'vendor-core', 'env', 'config'] },
             { from: 'vendor', allow: ['vendor-core', 'config'] },
             { from: 'vendor-core', allow: ['config'] },
             { from: 'ui', allow: ['config'] },
             { from: 'contracts', allow: ['config'] },
+            { from: 'env', allow: ['config'] },
           ],
         },
       ],

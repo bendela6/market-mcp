@@ -1,4 +1,5 @@
 import * as v from 'valibot';
+import { parseEnv } from '@market/env';
 
 const Schema = v.object({
   NODE_ENV: v.picklist(['development', 'production', 'test'] as const),
@@ -12,18 +13,12 @@ const Schema = v.object({
 
 export type Environment = v.InferOutput<typeof Schema>;
 
-function parseEnv(): Environment {
-  // eslint-disable-next-line no-restricted-properties, no-restricted-syntax
-  const result = v.safeParse(Schema, process.env);
-  if (result.success) return Object.freeze(result.output);
-  const issues = result.issues
-    .map((i) => {
-      const path = (i.path ?? []).map((p) => (p as { key?: string }).key ?? '').join('.');
-      return `  - ${path || '(root)'}: ${i.message}`;
-    })
-    .join('\n');
-  console.error(`[@market/mcp] invalid environment:\n${issues}`);
-  process.exit(1);
-}
-
-export const environment = parseEnv();
+export const environment = parseEnv({
+  schema: Schema,
+  source: process.env,
+  label: '@market/mcp',
+  onError: (message) => {
+    console.error(message);
+    process.exit(1);
+  },
+});

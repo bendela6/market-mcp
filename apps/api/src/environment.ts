@@ -1,4 +1,5 @@
 import * as v from 'valibot';
+import { parseEnv } from '@market/env';
 
 const NumberFromString = v.pipe(
   v.string(),
@@ -65,19 +66,13 @@ const Schema = v.pipe(
 
 export type Environment = v.InferOutput<typeof Schema>;
 
-function parseEnv(): Environment {
-  // This is the one file allowed to read process.env directly.
-  // eslint-disable-next-line no-restricted-properties, no-restricted-syntax
-  const result = v.safeParse(Schema, process.env);
-  if (result.success) return Object.freeze(result.output);
-  const issues = result.issues
-    .map((i) => {
-      const path = (i.path ?? []).map((p) => (p as { key?: string }).key ?? '').join('.');
-      return `  - ${path || '(root)'}: ${i.message}`;
-    })
-    .join('\n');
-  console.error(`[@market/api] invalid environment:\n${issues}`);
-  process.exit(1);
-}
-
-export const environment = parseEnv();
+export const environment = parseEnv({
+  schema: Schema,
+  // The one place in api that reads process.env directly.
+  source: process.env,
+  label: '@market/api',
+  onError: (message) => {
+    console.error(message);
+    process.exit(1);
+  },
+});

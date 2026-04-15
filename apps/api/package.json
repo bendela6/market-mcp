@@ -19,6 +19,7 @@
   "dependencies": {
     "@fastify/cors": "^10.0.1",
     "@market/contracts": "workspace:*",
+    "@market/env": "workspace:*",
     "@market/vendor-bolt-food": "workspace:*",
     "@market/vendor-core": "workspace:*",
     "@market/vendor-europroduct": "workspace:*",
