@@ -2,7 +2,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Input, Skeleton } from '@market/ui';
 import { useItemsQuery } from '../../hooks/use-items-query.js';
-import { parseSort } from '../../search-schemas.js';
+import { parseSort, type ItemListSearch } from '../../search-schemas.js';
 import { PaginationControls } from '../../features/listing/pagination-controls.js';
 
 function formatMinor(minor: number, currency: string): string {
@@ -11,7 +11,7 @@ function formatMinor(minor: number, currency: string): string {
 
 export function ProductsListPage() {
   const nav = useNavigate();
-  const search = useSearch({ from: '/products' });
+  const search = useSearch({ from: '/products' }) as ItemListSearch;
   const [q, setQ] = useState(search.q ?? '');
 
   const { data, isLoading, error } = useItemsQuery({
@@ -19,7 +19,7 @@ export function ProductsListPage() {
     take: search.take,
     q: search.q,
     mode: search.mode,
-    sort: parseSort(search.sort),
+    sort: parseSort<'name' | 'priceMinor' | 'relevance'>(search.sort),
     vendor: search.vendor,
     storeIdOrSlug: search.storeIdOrSlug,
     minPriceMinor: search.minPriceMinor,
@@ -34,7 +34,7 @@ export function ProductsListPage() {
         className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          void nav({ to: '/products', search: (s) => ({ ...s, skip: 0, q: q.trim() || undefined }) });
+          void nav({ to: '/products', search: { ...search, skip: 0, q: q.trim() || undefined } });
         }}
       >
         <Input placeholder="Search products…" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -62,7 +62,7 @@ export function ProductsListPage() {
             skip={data.meta.skip}
             take={data.meta.take}
             total={data.meta.total}
-            onChange={(n) => void nav({ to: '/products', search: (s) => ({ ...s, ...n }) })}
+            onChange={(n) => void nav({ to: '/products', search: { ...search, ...n } })}
           />
         </>
       )}

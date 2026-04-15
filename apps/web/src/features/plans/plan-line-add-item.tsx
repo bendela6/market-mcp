@@ -14,7 +14,7 @@ export function PlanLineAddItem({ planIdOrSlug }: { planIdOrSlug: string }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [qty, setQty] = useState(1);
-  const results = useItemsQuery({ q: q.length > 0 ? q : undefined, take: 20 });
+  const results = useItemsQuery({ skip: 0, take: 20, q: q.length > 0 ? q : undefined });
   const add = useAddPlanLine(planIdOrSlug);
 
   const pick = async (itemSlug: string) => {

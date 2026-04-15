@@ -19,7 +19,7 @@ export function PlanCreateDialog() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    const body: CreatePlanBody = { name: name.trim(), type, strategy };
+    const body: CreatePlanBody = { name: name.trim(), type, strategy, includeOffline: false };
     const plan = await create.mutateAsync(body);
     setOpen(false);
     setName('');

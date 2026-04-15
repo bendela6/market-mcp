@@ -2,19 +2,19 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Input, Skeleton } from '@market/ui';
 import { useStoresQuery } from '../../hooks/use-stores-query.js';
-import { parseSort } from '../../search-schemas.js';
+import { parseSort, type StoreListSearch } from '../../search-schemas.js';
 import { PaginationControls } from '../../features/listing/pagination-controls.js';
 
 export function StoresListPage() {
   const nav = useNavigate();
-  const search = useSearch({ from: '/stores' });
+  const search = useSearch({ from: '/stores' }) as StoreListSearch;
   const [q, setQ] = useState(search.q ?? '');
 
   const { data, isLoading, error } = useStoresQuery({
     skip: search.skip,
     take: search.take,
     q: search.q,
-    sort: parseSort(search.sort),
+    sort: parseSort<'name' | 'vendor' | 'productLine' | 'lastSeenAt'>(search.sort),
     vendor: search.vendor,
     productLine: search.productLine,
     online: search.online,
@@ -27,7 +27,7 @@ export function StoresListPage() {
         className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          void nav({ to: '/stores', search: (s) => ({ ...s, skip: 0, q: q.trim() || undefined }) });
+          void nav({ to: '/stores', search: { ...search, skip: 0, q: q.trim() || undefined } });
         }}
       >
         <Input placeholder="Search stores…" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -54,7 +54,7 @@ export function StoresListPage() {
             skip={data.meta.skip}
             take={data.meta.take}
             total={data.meta.total}
-            onChange={(n) => void nav({ to: '/stores', search: (s) => ({ ...s, ...n }) })}
+            onChange={(n) => void nav({ to: '/stores', search: { ...search, ...n } })}
           />
         </>
       )}

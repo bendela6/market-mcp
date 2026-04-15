@@ -2,20 +2,20 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Button, Card, CardContent, CardHeader, CardTitle, Skeleton } from '@market/ui';
 import { usePlansQuery } from '../../hooks/use-plans-query.js';
 import { useDeletePlan } from '../../hooks/use-plan-mutations.js';
-import { parseSort } from '../../search-schemas.js';
+import { parseSort, type PlanListSearch } from '../../search-schemas.js';
 import { PaginationControls } from '../../features/listing/pagination-controls.js';
 import { PlanCreateDialog } from '../../features/plans/plan-create-dialog.js';
 
 export function PlansListPage() {
   const nav = useNavigate();
-  const search = useSearch({ from: '/plans' });
+  const search = useSearch({ from: '/plans' }) as PlanListSearch;
   const del = useDeletePlan();
 
   const { data, isLoading, error } = usePlansQuery({
     skip: search.skip,
     take: search.take,
     q: search.q,
-    sort: parseSort(search.sort),
+    sort: parseSort<'name' | 'createdAt' | 'updatedAt'>(search.sort),
     type: search.type,
   });
 
@@ -50,7 +50,7 @@ export function PlansListPage() {
             skip={data.meta.skip}
             take={data.meta.take}
             total={data.meta.total}
-            onChange={(n) => void nav({ to: '/plans', search: (s) => ({ ...s, ...n }) })}
+            onChange={(n) => void nav({ to: '/plans', search: { ...search, ...n } })}
           />
         </>
       )}
