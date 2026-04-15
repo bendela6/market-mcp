@@ -2,51 +2,40 @@ import type { FastifyPluginAsync } from 'fastify';
 import * as v from 'valibot';
 import {
   CatalogStatsResponseSchema,
+  IdOrSlugParamsSchema,
+  ItemQueryBodySchema,
   ROUTES,
-  SearchItemsQuerySchema,
   type CatalogStatsResponse,
-  type SearchItemsResponse,
+  type GetItemResponse,
+  type ItemQueryResponse,
 } from '@market/contracts';
-import type { CatalogService, HybridItemHit } from '../services/catalog.js';
+import type { CatalogService } from '../services/catalog.js';
 import type { Embedder } from '../embeddings/index.js';
-
-function hitToResult(h: HybridItemHit) {
-  return {
-    id: h.id,
-    vendor: h.vendor,
-    venueSlug: h.venueSlug,
-    venueName: h.venueName,
-    name: h.name,
-    description: h.description ?? undefined,
-    priceMinor: h.priceMinor,
-    currency: h.currency,
-    gtin: h.gtin ?? undefined,
-    imageUrl: h.imageUrl ?? undefined,
-    score: h.score ?? undefined,
-  };
-}
 
 export function catalogRoutes(catalog: CatalogService, embedder: Embedder): FastifyPluginAsync {
   return async (app) => {
-    app.get(ROUTES.catalog.search, async (request, reply) => {
-      const parsed = v.safeParse(SearchItemsQuerySchema, request.query);
-      if (!parsed.success) {
-        reply.code(400).send({ error: 'invalid query', issues: parsed.issues });
-        return;
-      }
-      const { q, mode, limit } = parsed.output;
-      let hits: HybridItemHit[];
-      switch (mode) {
-        case 'keyword':
-          hits = await catalog.searchItemsKeyword(q, limit);
-          break;
-        case 'semantic':
-        case 'hybrid':
-        default:
-          hits = await catalog.searchItemsHybrid(q, embedder, limit);
-          break;
-      }
-      const response: SearchItemsResponse = { items: hits.map(hitToResult), mode };
+    app.post(ROUTES.catalog.itemQuery, async (request, reply) => {
+      const parsed = v.safeParse(ItemQueryBodySchema, request.body);
+      if (!parsed.success) { reply.code(400).send({ error: 'invalid body', issues: parsed.issues }); return; }
+      const { data, total } = await catalog.queryItems(parsed.output, embedder);
+      const response: ItemQueryResponse = {
+        data,
+        meta: {
+          total,
+          skip: parsed.output.skip ?? 0,
+          take: parsed.output.take ?? 50,
+          sort: parsed.output.sort,
+        },
+      };
+      return response;
+    });
+
+    app.get('/v1/catalog/items/:idOrSlug', async (request, reply) => {
+      const parsed = v.safeParse(IdOrSlugParamsSchema, request.params);
+      if (!parsed.success) { reply.code(400).send({ error: 'invalid params' }); return; }
+      const item = await catalog.getItemByIdOrSlug(parsed.output.idOrSlug);
+      if (!item) { reply.code(404).send({ error: 'not found' }); return; }
+      const response: GetItemResponse = { item };
       return response;
     });
 
