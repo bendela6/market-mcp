@@ -19,6 +19,7 @@
     "test": "turbo run test",
     "db:generate": "pnpm --filter @market/api db:generate",
     "db:migrate": "pnpm --filter @market/api db:migrate",
+    "db:studio": "pnpm --filter @market/api db:studio",
     "crawl": "pnpm --filter @market/api crawl"
   },
   "devDependencies": {
