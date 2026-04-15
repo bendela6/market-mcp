@@ -1,0 +1,13 @@
+node_modules
+.pnpm-store
+**/node_modules
+**/dist
+**/build
+**/.turbo
+.legacy
+.git
+.github
+docs
+*.log
+.env
+.env.local
