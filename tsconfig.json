@@ -1,0 +1,17 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/config" },
+    { "path": "./packages/vendors/core" },
+    { "path": "./packages/vendors/wolt" },
+    { "path": "./packages/vendors/glovo" },
+    { "path": "./packages/vendors/bolt-food" },
+    { "path": "./packages/vendors/europroduct" },
+    { "path": "./packages/vendors/goodwill" },
+    { "path": "./packages/contracts" },
+    { "path": "./packages/ui" },
+    { "path": "./apps/api" },
+    { "path": "./apps/mcp" },
+    { "path": "./apps/web" }
+  ]
+}
