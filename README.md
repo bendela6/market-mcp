@@ -10,30 +10,46 @@ Multi-vendor grocery/food delivery aggregator for Georgia. Crawls Wolt (and — 
 
 ## Getting started
 
+**Prereqs:** Node ≥22, pnpm ≥9, Docker.
+
+### One-time setup
+
 ```bash
-# 1. Install deps
 pnpm install
-
-# 2. Start postgres
-docker compose up -d postgres
-
-# 3. Copy env
 cp .env.example .env
-
-# 4. Migrate the DB
+docker compose up -d postgres
 pnpm db:migrate
+```
 
-# 5. Run the api
-pnpm --filter @market/api dev
+### Run all services
 
-# 6. In another shell, crawl Wolt for one venue
+The web app reads `VITE_API_URL` from the root `.env` and expects the API on `http://localhost:3000`. Start everything in watch mode with one command:
+
+```bash
+pnpm dev
+```
+
+This runs `postgres` (via Docker, started above), `@market/api`, `@market/mcp`, and `@market/web` via Turbo. Services:
+
+| Service | URL | Command (individual) |
+|---|---|---|
+| Postgres (+pgvector) | `localhost:5432` | `docker compose up -d postgres` |
+| API (Fastify) | http://localhost:3000 | `pnpm --filter @market/api dev` |
+| MCP server | stdio (set `MCP_HTTP=1` for `:8787`) | `pnpm --filter @market/mcp dev` |
+| Web UI (Vite) | http://localhost:5173 | `pnpm --filter @market/web dev` |
+
+### Seed some data
+
+```bash
 pnpm crawl -- --vendor wolt --venue carrefour-express-tbilisi
-
-# 7. Query the catalog
 curl 'http://localhost:3000/v1/catalog/search?q=milk'
+```
 
-# 8. Run the web UI
-pnpm --filter @market/web dev
+### Stop
+
+```bash
+docker compose down          # stop postgres
+# Ctrl+C in the `pnpm dev` terminal to stop the Node services
 ```
 
 ## Tasks
