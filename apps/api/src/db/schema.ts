@@ -79,6 +79,7 @@ export const items = pgTable('items', {
   currency:     text('currency').notNull(),
   available:    boolean('available').notNull().default(true),
   tags:         jsonb('tags').$type<string[]>().default([]),
+  rawContent:   jsonb('raw_content').$type<Record<string, unknown>>(),
   searchText:   text('search_text').generatedAlwaysAs(
                   sql`name || ' ' || coalesce(description, '')`,
                 ),
