@@ -1,10 +1,11 @@
-import { and, count, eq, ilike, isNotNull, sql } from 'drizzle-orm';
+import { and, count, eq, isNotNull, sql } from 'drizzle-orm';
 import type {
   AssortmentCategory,
   Product,
   Venue as VendorVenue,
   VendorId,
 } from '@market/vendor-core';
+import { buildStoreSlug, buildCategorySlug, buildItemSlug } from '@market/vendor-core';
 import type { DbClient } from '../db/client.js';
 import {
   categories,
@@ -12,60 +13,52 @@ import {
   itemEmbeddings,
   items,
   priceObservations,
-  venues,
-  type ItemRow,
-  type VenueRow,
+  stores,
+  type StoreRow,
 } from '../db/schema.js';
 import type { Embedder } from '../embeddings/index.js';
-
-export interface CatalogService {
-  upsertVenues(vendor: VendorId, list: VendorVenue[]): Promise<void>;
-  upsertCategories(vendor: VendorId, venueSlug: string, cats: AssortmentCategory[]): Promise<void>;
-  upsertItems(vendor: VendorId, venueSlug: string, products: Product[]): Promise<number>;
-  touchVenueAssortmentRefresh(vendor: VendorId, venueSlug: string): Promise<void>;
-  listVenues(filter: {
-    vendor?: VendorId;
-    productLine?: string;
-    online?: boolean;
-    q?: string;
-    limit?: number;
-  }): Promise<VenueRow[]>;
-  getVenue(vendor: VendorId, slug: string): Promise<VenueRow | undefined>;
-  searchItemsHybrid(query: string, embedder: Embedder, limit: number): Promise<HybridItemHit[]>;
-  searchItemsKeyword(query: string, limit: number): Promise<HybridItemHit[]>;
-  searchItemsByBarcode(gtin: string): Promise<HybridItemHit[]>;
-  stats(): Promise<{
-    venues: number;
-    categories: number;
-    items: number;
-    itemsWithEmbedding: number;
-    venuesWithAssortment: number;
-  }>;
-}
+import type { ItemQueryBody, Item, CatalogStatsResponse } from '@market/contracts';
+import { buildOrderBy } from '../lib/query-builder.js';
+import { itemWhere, isUuid } from '../lib/id-or-slug.js';
 
 export interface HybridItemHit {
   id: string;
+  slug: string;
   vendor: VendorId;
-  venueId: string;
-  venueSlug: string;
-  venueName: string;
+  storeId: string;
+  storeSlug: string;
+  storeName: string;
   name: string;
   description: string | null;
   priceMinor: number;
   currency: string;
   gtin: string | null;
   imageUrl: string | null;
-  online: boolean;
+  available: boolean;
   deliveryPriceInt: number | null;
   score: number | null;
 }
 
-function mapVendorVenueToInsert(vendor: VendorId, v: VendorVenue) {
+export interface CatalogService {
+  upsertStores(vendor: VendorId, list: VendorVenue[]): Promise<void>;
+  upsertCategories(vendor: VendorId, storeVendorSlug: string, cats: AssortmentCategory[]): Promise<void>;
+  upsertItems(vendor: VendorId, storeVendorSlug: string, products: Product[]): Promise<number>;
+  touchStoreAssortmentRefresh(vendor: VendorId, storeVendorSlug: string): Promise<void>;
+
+  queryItems(body: ItemQueryBody, embedder: Embedder): Promise<{ data: Item[]; total: number }>;
+  getItemByIdOrSlug(idOrSlug: string): Promise<Item | undefined>;
+  searchItemsForPlan(query: string, embedder: Embedder, limit: number): Promise<HybridItemHit[]>;
+  searchItemsByBarcodeForPlan(gtin: string): Promise<HybridItemHit[]>;
+  stats(): Promise<CatalogStatsResponse>;
+}
+
+function mapVendorToStoreInsert(vendor: VendorId, v: VendorVenue) {
   return {
     vendor,
+    slug: buildStoreSlug(vendor, v.slug),
     vendorSlug: v.slug,
     name: v.name,
-    productLine: (v.productLine ?? null) as ItemRow['vendor'] extends never ? never : VenueRow['productLine'],
+    productLine: (v.productLine ?? null) as StoreRow['productLine'],
     online: v.online ?? false,
     currency: v.currency ?? 'GEL',
     lat: v.location?.lat != null ? String(v.location.lat) : null,
@@ -79,33 +72,54 @@ function mapVendorVenueToInsert(vendor: VendorId, v: VendorVenue) {
 function hydrateHit(row: Record<string, unknown>): HybridItemHit {
   return {
     id: row.id as string,
+    slug: row.slug as string,
     vendor: row.vendor as VendorId,
-    venueId: row.venue_id as string,
-    venueSlug: row.venue_slug as string,
-    venueName: (row.venue_name as string) ?? '',
+    storeId: row.store_id as string,
+    storeSlug: row.store_slug as string,
+    storeName: (row.store_name as string) ?? '',
     name: row.name as string,
     description: (row.description as string | null) ?? null,
     priceMinor: Number(row.price_minor),
     currency: row.currency as string,
     gtin: (row.gtin as string | null) ?? null,
     imageUrl: (row.image_url as string | null) ?? null,
-    online: Boolean(row.online),
+    available: Boolean(row.available),
     deliveryPriceInt: null,
     score: row.score != null ? Number(row.score) : null,
   };
 }
 
+function hitToItem(h: HybridItemHit): Item {
+  return {
+    id: h.id,
+    slug: h.slug,
+    vendor: h.vendor,
+    storeId: h.storeId,
+    storeSlug: h.storeSlug,
+    storeName: h.storeName,
+    name: h.name,
+    description: h.description ?? undefined,
+    priceMinor: h.priceMinor,
+    currency: h.currency,
+    gtin: h.gtin ?? undefined,
+    imageUrl: h.imageUrl ?? undefined,
+    available: h.available,
+    score: h.score ?? undefined,
+  };
+}
+
 export function createCatalogService(db: DbClient): CatalogService {
   return {
-    async upsertVenues(vendor, list) {
+    async upsertStores(vendor, list) {
       if (list.length === 0) return;
-      const rows = list.map((v) => mapVendorVenueToInsert(vendor, v));
+      const rows = list.map((v) => mapVendorToStoreInsert(vendor, v));
       await db
-        .insert(venues)
+        .insert(stores)
         .values(rows)
         .onConflictDoUpdate({
-          target: [venues.vendor, venues.vendorSlug],
+          target: [stores.vendor, stores.vendorSlug],
           set: {
+            slug: sql`excluded.slug`,
             name: sql`excluded.name`,
             productLine: sql`excluded.product_line`,
             online: sql`excluded.online`,
@@ -119,13 +133,14 @@ export function createCatalogService(db: DbClient): CatalogService {
         });
     },
 
-    async upsertCategories(vendor, venueSlug, cats) {
-      const venueRow = await db.query.venues.findFirst({
-        where: and(eq(venues.vendor, vendor), eq(venues.vendorSlug, venueSlug)),
+    async upsertCategories(vendor, storeVendorSlug, cats) {
+      const storeRow = await db.query.stores.findFirst({
+        where: and(eq(stores.vendor, vendor), eq(stores.vendorSlug, storeVendorSlug)),
       });
-      if (!venueRow) return;
+      if (!storeRow) return;
       const flat: Array<{
-        venueId: string;
+        storeId: string;
+        slug: string;
         vendorSlug: string;
         parentSlug: string | null;
         name: string;
@@ -135,7 +150,8 @@ export function createCatalogService(db: DbClient): CatalogService {
       const walk = (list: AssortmentCategory[], parent: string | null) => {
         for (const c of list) {
           flat.push({
-            venueId: venueRow.id,
+            storeId: storeRow.id,
+            slug: buildCategorySlug(storeRow.slug, c.slug),
             vendorSlug: c.slug,
             parentSlug: parent,
             name: c.name,
@@ -150,8 +166,9 @@ export function createCatalogService(db: DbClient): CatalogService {
         .insert(categories)
         .values(flat)
         .onConflictDoUpdate({
-          target: [categories.venueId, categories.vendorSlug],
+          target: [categories.storeId, categories.vendorSlug],
           set: {
+            slug: sql`excluded.slug`,
             parentSlug: sql`excluded.parent_slug`,
             name: sql`excluded.name`,
             position: sql`excluded.position`,
@@ -159,15 +176,16 @@ export function createCatalogService(db: DbClient): CatalogService {
         });
     },
 
-    async upsertItems(vendor, venueSlug, products) {
+    async upsertItems(vendor, storeVendorSlug, products) {
       if (products.length === 0) return 0;
-      const venueRow = await db.query.venues.findFirst({
-        where: and(eq(venues.vendor, vendor), eq(venues.vendorSlug, venueSlug)),
+      const storeRow = await db.query.stores.findFirst({
+        where: and(eq(stores.vendor, vendor), eq(stores.vendorSlug, storeVendorSlug)),
       });
-      if (!venueRow) return 0;
+      if (!storeRow) return 0;
 
       const rows = products.map((p) => ({
-        venueId: venueRow.id,
+        storeId: storeRow.id,
+        slug: buildItemSlug(storeRow.slug, p.name, p.id),
         vendor,
         vendorItemId: p.id,
         name: p.name,
@@ -185,8 +203,9 @@ export function createCatalogService(db: DbClient): CatalogService {
         .insert(items)
         .values(rows)
         .onConflictDoUpdate({
-          target: [items.venueId, items.vendorItemId],
+          target: [items.storeId, items.vendorItemId],
           set: {
+            slug: sql`excluded.slug`,
             name: sql`excluded.name`,
             description: sql`excluded.description`,
             gtin: sql`excluded.gtin`,
@@ -217,102 +236,156 @@ export function createCatalogService(db: DbClient): CatalogService {
       return inserted.length;
     },
 
-    async touchVenueAssortmentRefresh(vendor, venueSlug) {
+    async touchStoreAssortmentRefresh(vendor, storeVendorSlug) {
       await db
-        .update(venues)
+        .update(stores)
         .set({ lastAssortmentRefreshAt: new Date() })
-        .where(and(eq(venues.vendor, vendor), eq(venues.vendorSlug, venueSlug)));
+        .where(and(eq(stores.vendor, vendor), eq(stores.vendorSlug, storeVendorSlug)));
     },
 
-    async listVenues(filter) {
+    async queryItems(body, embedder) {
+      const hasQ = !!(body.q && body.q.trim().length > 0);
+
+      if (hasQ) {
+        const q = body.q!.trim();
+        const mode = body.mode ?? 'hybrid';
+        const limit = body.take ?? 50;
+        const offset = body.skip ?? 0;
+
+        let hits: HybridItemHit[];
+        if (mode === 'keyword') {
+          hits = await searchKeyword(db, q, limit + offset);
+        } else {
+          hits = await searchHybrid(db, embedder, q, limit + offset);
+        }
+        const paged = hits.slice(offset, offset + limit);
+        return {
+          data: paged.map(hitToItem),
+          total: hits.length,
+        };
+      }
+
       const conds = [];
-      if (filter.vendor) conds.push(eq(venues.vendor, filter.vendor));
-      if (filter.productLine) conds.push(eq(venues.productLine, filter.productLine as never));
-      if (filter.online != null) conds.push(eq(venues.online, filter.online));
-      if (filter.q) conds.push(ilike(venues.name, `%${filter.q}%`));
-      return db
-        .select()
-        .from(venues)
-        .where(conds.length ? and(...conds) : undefined)
-        .limit(filter.limit ?? 200);
+      if (body.vendor) conds.push(eq(items.vendor, body.vendor));
+      if (body.available != null) conds.push(eq(items.available, body.available));
+      if (body.minPriceMinor != null) conds.push(sql`${items.priceMinor} >= ${body.minPriceMinor}`);
+      if (body.maxPriceMinor != null) conds.push(sql`${items.priceMinor} <= ${body.maxPriceMinor}`);
+      if (body.storeIdOrSlug) {
+        const storeId = await resolveStoreId(db, body.storeIdOrSlug);
+        if (!storeId) return { data: [], total: 0 };
+        conds.push(eq(items.storeId, storeId));
+      }
+      if (body.categoryIdOrSlug) {
+        const catId = await resolveCategoryId(db, body.categoryIdOrSlug);
+        if (!catId) return { data: [], total: 0 };
+        conds.push(eq(items.categoryId, catId));
+      }
+      const where = conds.length ? and(...conds) : undefined;
+
+      const order = buildOrderBy(body.sort, {
+        name: items.name,
+        priceMinor: items.priceMinor,
+        relevance: items.name,
+      }, items.name);
+
+      const rows = await db
+        .select({
+          id: items.id,
+          slug: items.slug,
+          vendor: items.vendor,
+          storeId: items.storeId,
+          storeSlug: stores.slug,
+          storeName: stores.name,
+          name: items.name,
+          description: items.description,
+          priceMinor: items.priceMinor,
+          currency: items.currency,
+          gtin: items.gtin,
+          imageUrl: items.imageUrl,
+          available: items.available,
+        })
+        .from(items)
+        .innerJoin(stores, eq(stores.id, items.storeId))
+        .where(where)
+        .orderBy(...order)
+        .limit(body.take ?? 50)
+        .offset(body.skip ?? 0);
+
+      const [{ n }] = await db.select({ n: count() }).from(items).where(where);
+
+      return {
+        data: rows.map((r) => ({
+          id: r.id,
+          slug: r.slug,
+          vendor: r.vendor,
+          storeId: r.storeId,
+          storeSlug: r.storeSlug,
+          storeName: r.storeName,
+          name: r.name,
+          description: r.description ?? undefined,
+          priceMinor: r.priceMinor,
+          currency: r.currency,
+          gtin: r.gtin ?? undefined,
+          imageUrl: r.imageUrl ?? undefined,
+          available: r.available,
+        })),
+        total: Number(n),
+      };
     },
 
-    async getVenue(vendor, slug) {
-      return db.query.venues.findFirst({
-        where: and(eq(venues.vendor, vendor), eq(venues.vendorSlug, slug)),
-      });
+    async getItemByIdOrSlug(idOrSlug) {
+      const row = await db
+        .select({
+          id: items.id,
+          slug: items.slug,
+          vendor: items.vendor,
+          storeId: items.storeId,
+          storeSlug: stores.slug,
+          storeName: stores.name,
+          name: items.name,
+          description: items.description,
+          priceMinor: items.priceMinor,
+          currency: items.currency,
+          gtin: items.gtin,
+          imageUrl: items.imageUrl,
+          available: items.available,
+        })
+        .from(items)
+        .innerJoin(stores, eq(stores.id, items.storeId))
+        .where(itemWhere(idOrSlug))
+        .limit(1);
+      const r = row[0];
+      if (!r) return undefined;
+      return {
+        id: r.id,
+        slug: r.slug,
+        vendor: r.vendor,
+        storeId: r.storeId,
+        storeSlug: r.storeSlug,
+        storeName: r.storeName,
+        name: r.name,
+        description: r.description ?? undefined,
+        priceMinor: r.priceMinor,
+        currency: r.currency,
+        gtin: r.gtin ?? undefined,
+        imageUrl: r.imageUrl ?? undefined,
+        available: r.available,
+      };
     },
 
-    async searchItemsHybrid(query, embedder, limit) {
-      const [vec] = await embedder.embed([query]);
-      if (!vec) return [];
-      const vecLiteral = `[${vec.join(',')}]`;
+    async searchItemsForPlan(query, embedder, limit) {
+      return searchHybrid(db, embedder, query, limit);
+    },
+
+    async searchItemsByBarcodeForPlan(gtin) {
       const rows = await db.execute<Record<string, unknown>>(sql`
-        WITH
-          q AS (SELECT ${query}::text AS qtext, ${vecLiteral}::vector(1024) AS qvec),
-          fts AS (
-            SELECT i.id, ROW_NUMBER() OVER (
-              ORDER BY ts_rank(
-                to_tsvector('simple', i.search_text),
-                plainto_tsquery('simple', (SELECT qtext FROM q))
-              ) DESC
-            ) AS rnk
-            FROM items i
-            WHERE to_tsvector('simple', i.search_text) @@ plainto_tsquery('simple', (SELECT qtext FROM q))
-            LIMIT 200
-          ),
-          vec AS (
-            SELECT ie.item_id AS id, ROW_NUMBER() OVER (
-              ORDER BY ie.embedding <=> (SELECT qvec FROM q)
-            ) AS rnk
-            FROM item_embeddings ie
-            ORDER BY ie.embedding <=> (SELECT qvec FROM q)
-            LIMIT 200
-          ),
-          fused AS (
-            SELECT id, SUM(1.0 / (60 + rnk)) AS score
-            FROM (SELECT * FROM fts UNION ALL SELECT * FROM vec) x
-            GROUP BY id
-          )
         SELECT
-          i.id, i.vendor, i.venue_id, i.name, i.description, i.price_minor, i.currency,
-          i.gtin, i.image_url, i.available AS online,
-          v.vendor_slug AS venue_slug, v.name AS venue_name,
-          f.score
-        FROM fused f
-        JOIN items i ON i.id = f.id
-        JOIN venues v ON v.id = i.venue_id
-        ORDER BY f.score DESC
-        LIMIT ${limit};
-      `);
-      return rows.rows.map(hydrateHit);
-    },
-
-    async searchItemsKeyword(query, limit) {
-      const rows = await db.execute<Record<string, unknown>>(sql`
-        SELECT
-          i.id, i.vendor, i.venue_id, i.name, i.description, i.price_minor, i.currency,
-          i.gtin, i.image_url, i.available AS online,
-          v.vendor_slug AS venue_slug, v.name AS venue_name,
-          ts_rank(to_tsvector('simple', i.search_text), plainto_tsquery('simple', ${query})) AS score
-        FROM items i
-        JOIN venues v ON v.id = i.venue_id
-        WHERE to_tsvector('simple', i.search_text) @@ plainto_tsquery('simple', ${query})
-        ORDER BY score DESC, i.price_minor ASC
-        LIMIT ${limit};
-      `);
-      return rows.rows.map(hydrateHit);
-    },
-
-    async searchItemsByBarcode(gtin) {
-      const rows = await db.execute<Record<string, unknown>>(sql`
-        SELECT
-          i.id, i.vendor, i.venue_id, i.name, i.description, i.price_minor, i.currency,
-          i.gtin, i.image_url, i.available AS online,
-          v.vendor_slug AS venue_slug, v.name AS venue_name,
+          i.id, i.slug, i.vendor, i.store_id, i.name, i.description, i.price_minor, i.currency,
+          i.gtin, i.image_url, i.available,
+          s.slug AS store_slug, s.name AS store_name,
           NULL::double precision AS score
         FROM items i
-        JOIN venues v ON v.id = i.venue_id
+        JOIN stores s ON s.id = i.store_id
         WHERE i.gtin = ${gtin} AND i.available = true
         ORDER BY i.price_minor ASC;
       `);
@@ -320,21 +393,94 @@ export function createCatalogService(db: DbClient): CatalogService {
     },
 
     async stats() {
-      const [venueCount] = await db.select({ n: count() }).from(venues);
+      const [storeCount] = await db.select({ n: count() }).from(stores);
       const [catCount] = await db.select({ n: count() }).from(categories);
       const [itemCount] = await db.select({ n: count() }).from(items);
       const [embCount] = await db.select({ n: count() }).from(itemEmbeddings);
       const [freshCount] = await db
         .select({ n: count() })
-        .from(venues)
-        .where(isNotNull(venues.lastAssortmentRefreshAt));
+        .from(stores)
+        .where(isNotNull(stores.lastAssortmentRefreshAt));
       return {
-        venues: Number(venueCount?.n ?? 0),
+        stores: Number(storeCount?.n ?? 0),
         categories: Number(catCount?.n ?? 0),
         items: Number(itemCount?.n ?? 0),
         itemsWithEmbedding: Number(embCount?.n ?? 0),
-        venuesWithAssortment: Number(freshCount?.n ?? 0),
+        storesWithAssortment: Number(freshCount?.n ?? 0),
       };
     },
   };
+}
+
+async function searchHybrid(db: DbClient, embedder: Embedder, query: string, limit: number): Promise<HybridItemHit[]> {
+  const [vec] = await embedder.embed([query]);
+  if (!vec) return [];
+  const vecLiteral = `[${vec.join(',')}]`;
+  const rows = await db.execute<Record<string, unknown>>(sql`
+    WITH
+      q AS (SELECT ${query}::text AS qtext, ${vecLiteral}::vector(1024) AS qvec),
+      fts AS (
+        SELECT i.id, ROW_NUMBER() OVER (
+          ORDER BY ts_rank(
+            to_tsvector('simple', i.search_text),
+            plainto_tsquery('simple', (SELECT qtext FROM q))
+          ) DESC
+        ) AS rnk
+        FROM items i
+        WHERE to_tsvector('simple', i.search_text) @@ plainto_tsquery('simple', (SELECT qtext FROM q))
+        LIMIT 200
+      ),
+      vec AS (
+        SELECT ie.item_id AS id, ROW_NUMBER() OVER (
+          ORDER BY ie.embedding <=> (SELECT qvec FROM q)
+        ) AS rnk
+        FROM item_embeddings ie
+        ORDER BY ie.embedding <=> (SELECT qvec FROM q)
+        LIMIT 200
+      ),
+      fused AS (
+        SELECT id, SUM(1.0 / (60 + rnk)) AS score
+        FROM (SELECT * FROM fts UNION ALL SELECT * FROM vec) x
+        GROUP BY id
+      )
+    SELECT
+      i.id, i.slug, i.vendor, i.store_id, i.name, i.description, i.price_minor, i.currency,
+      i.gtin, i.image_url, i.available,
+      s.slug AS store_slug, s.name AS store_name,
+      f.score
+    FROM fused f
+    JOIN items i ON i.id = f.id
+    JOIN stores s ON s.id = i.store_id
+    ORDER BY f.score DESC
+    LIMIT ${limit};
+  `);
+  return rows.rows.map(hydrateHit);
+}
+
+async function searchKeyword(db: DbClient, query: string, limit: number): Promise<HybridItemHit[]> {
+  const rows = await db.execute<Record<string, unknown>>(sql`
+    SELECT
+      i.id, i.slug, i.vendor, i.store_id, i.name, i.description, i.price_minor, i.currency,
+      i.gtin, i.image_url, i.available,
+      s.slug AS store_slug, s.name AS store_name,
+      ts_rank(to_tsvector('simple', i.search_text), plainto_tsquery('simple', ${query})) AS score
+    FROM items i
+    JOIN stores s ON s.id = i.store_id
+    WHERE to_tsvector('simple', i.search_text) @@ plainto_tsquery('simple', ${query})
+    ORDER BY score DESC, i.price_minor ASC
+    LIMIT ${limit};
+  `);
+  return rows.rows.map(hydrateHit);
+}
+
+async function resolveStoreId(db: DbClient, idOrSlug: string): Promise<string | undefined> {
+  if (isUuid(idOrSlug)) return idOrSlug;
+  const row = await db.query.stores.findFirst({ where: eq(stores.slug, idOrSlug) });
+  return row?.id;
+}
+
+async function resolveCategoryId(db: DbClient, idOrSlug: string): Promise<string | undefined> {
+  if (isUuid(idOrSlug)) return idOrSlug;
+  const row = await db.query.categories.findFirst({ where: eq(categories.slug, idOrSlug) });
+  return row?.id;
 }
