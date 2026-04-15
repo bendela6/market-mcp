@@ -1,0 +1,8 @@
+{
+  "extends": "@market/config/tsconfig/package",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src/**/*.ts"]
+}
