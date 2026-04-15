@@ -5,3 +5,4 @@ export * from './plans.js';
 export * from './users.js';
 export * from './admin.js';
 export * from './routes.js';
+export * from './vendor-data/index.js';

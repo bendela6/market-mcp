@@ -24,9 +24,20 @@ export const StoreSchema = v.object({
   deliveryPriceInt: v.optional(PriceMinorSchema),
   deliveryPriceText: v.optional(v.string()),
   iconUrl:          v.optional(v.string()),
+  vendorData:       v.optional(v.unknown()),
 });
 
-export const StoreSortFields = ['name', 'vendor', 'productLine', 'lastSeenAt'] as const;
+export const StoreSortFields = [
+  'name',
+  'vendor',
+  'productLine',
+  'lastSeenAt',
+  'distance',
+  'ratingScore',
+  'popularity',
+  'priceRange',
+  'eta',
+] as const;
 
 export const StoreQueryBodySchema = v.object({
   ...PaginationBaseSchema.entries,
@@ -34,6 +45,9 @@ export const StoreQueryBodySchema = v.object({
   vendor:      v.optional(VendorIdSchema),
   productLine: v.optional(ProductLineSchema),
   online:      v.optional(v.boolean()),
+  /** Reference point for `distance` sort. Falls back to server env default. */
+  lat:         v.optional(v.number()),
+  lon:         v.optional(v.number()),
 });
 
 export const StoreQueryResponseSchema = envelope(StoreSchema);

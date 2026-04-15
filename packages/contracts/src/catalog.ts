@@ -24,6 +24,7 @@ export const ItemSchema = v.object({
   imageUrl:    v.optional(v.string()),
   available:   v.boolean(),
   score:       v.optional(v.number()),
+  vendorData:  v.optional(v.unknown()),
 });
 
 export const ItemSortFields = ['name', 'priceMinor', 'relevance'] as const;

@@ -1,8 +1,8 @@
 import type {
   AddPlanLineBody, CatalogStatsResponse, ComputePlanResponse, CreatePlanBody,
   CreateUserBody, GetItemResponse, GetStoreResponse, ItemQueryBody, ItemQueryResponse,
-  Plan, PlanDetail, PlanQueryBody, PlanQueryResponse, StoreQueryBody,
-  StoreQueryResponse, UpdatePlanBody, UpdatePlanLineBody, User,
+  Plan, PlanDetail, PlanQueryBody, PlanQueryResponse, RefreshAssortmentResponse,
+  StoreQueryBody, StoreQueryResponse, UpdatePlanBody, UpdatePlanLineBody, User,
 } from '@market/contracts';
 import { ROUTES } from '@market/contracts';
 import { environment } from './environment.js';
@@ -40,6 +40,11 @@ export const api = {
     raw<StoreQueryResponse>(ROUTES.stores.query, { method: 'POST', body: JSON.stringify(body) }),
   getStore: (idOrSlug: string) =>
     raw<GetStoreResponse>(ROUTES.stores.get(idOrSlug), { method: 'GET' }),
+  refreshStoreAssortment: (idOrSlug: string) =>
+    raw<RefreshAssortmentResponse>(ROUTES.stores.refreshAssortment(idOrSlug), {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
 
   // catalog
   queryItems: (body: ItemQueryBody) =>

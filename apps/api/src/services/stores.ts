@@ -1,9 +1,10 @@
-import { and, count, eq, ilike } from 'drizzle-orm';
+import { and, count, eq, ilike, sql } from 'drizzle-orm';
 import type { DbClient } from '../db/client.js';
 import { stores, type StoreRow } from '../db/schema.js';
 import type { StoreQueryBody, Store } from '@market/contracts';
 import { buildOrderBy } from '../lib/query-builder.js';
 import { storeWhere } from '../lib/id-or-slug.js';
+import { environment } from '../environment.js';
 
 export interface StoresService {
   query(body: StoreQueryBody): Promise<{ data: Store[]; total: number }>;
@@ -22,6 +23,7 @@ function rowToStore(r: StoreRow): Store {
     productLine: r.productLine ?? undefined,
     online:      r.online,
     location:    r.lat && r.lon ? { lat: Number(r.lat), lon: Number(r.lon) } : undefined,
+    vendorData:  r.rawContent ?? undefined,
   };
 }
 
@@ -35,11 +37,33 @@ export function createStoresService(db: DbClient): StoresService {
       if (body.q) conds.push(ilike(stores.name, `%${body.q}%`));
       const where = conds.length ? and(...conds) : undefined;
 
+      const refLat = body.lat ?? environment.WOLT_LAT;
+      const refLon = body.lon ?? environment.WOLT_LON;
+
+      // Squared-degree distance is monotonic with haversine over a single city
+      // and far cheaper. COALESCE large so missing-location rows sink on ASC.
+      const distanceExpr = sql`COALESCE(
+        (NULLIF(${stores.lat}, '')::float - ${refLat})
+          * (NULLIF(${stores.lat}, '')::float - ${refLat})
+        + (NULLIF(${stores.lon}, '')::float - ${refLon})
+          * (NULLIF(${stores.lon}, '')::float - ${refLon}),
+        1e18
+      )`;
+      const ratingScoreExpr = sql`COALESCE((${stores.rawContent}->'rating'->>'score')::float, 0)`;
+      const popularityExpr  = sql`COALESCE((${stores.rawContent}->'rating'->>'volume')::int, 0)`;
+      const priceRangeExpr  = sql`COALESCE((${stores.rawContent}->>'price_range')::int, 999)`;
+      const etaExpr         = sql`COALESCE((${stores.rawContent}->>'estimate')::int, 99999)`;
+
       const order = buildOrderBy(body.sort, {
         name: stores.name,
         vendor: stores.vendor,
         productLine: stores.productLine,
         lastSeenAt: stores.lastSeenAt,
+        distance: distanceExpr,
+        ratingScore: ratingScoreExpr,
+        popularity: popularityExpr,
+        priceRange: priceRangeExpr,
+        eta: etaExpr,
       }, stores.name);
 
       const rows = await db.select().from(stores)

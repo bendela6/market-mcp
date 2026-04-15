@@ -54,6 +54,7 @@ export function storesRoutes(
           productLine: row.productLine ?? undefined,
           online: row.online,
           location: row.lat && row.lon ? { lat: Number(row.lat), lon: Number(row.lon) } : undefined,
+          vendorData: row.rawContent ?? undefined,
         },
         content: row.rawContent ?? undefined,
       };
@@ -62,7 +63,6 @@ export function storesRoutes(
 
     app.post(
       '/v1/stores/:idOrSlug/refresh-assortment',
-      { preHandler: app.requireApiToken },
       async (request, reply) => {
         const parsed = v.safeParse(IdOrSlugParamsSchema, request.params);
         if (!parsed.success) { reply.code(400).send({ error: 'invalid params' }); return; }

@@ -1,27 +1,49 @@
 import { useParams } from '@tanstack/react-router';
-import { Card, CardContent, CardHeader, CardTitle, Skeleton } from '@market/ui';
+import { Skeleton, toast } from '@market/ui';
 import { useStore } from '../../hooks/use-store.js';
+import { useRefreshStoreAssortment } from '../../hooks/use-store-mutations.js';
+import { StoreDetail } from '../../features/stores/store-detail.js';
 
 export function StoreDetailPage() {
   const { idOrSlug } = useParams({ from: '/stores/$idOrSlug' });
   const { data, isLoading, error } = useStore(idOrSlug);
+  const refresh = useRefreshStoreAssortment(idOrSlug);
 
-  if (isLoading) return <Skeleton className="h-40 w-full" />;
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="aspect-square w-32 flex-shrink-0 sm:w-40" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-7 w-2/3" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+          <Skeleton className="h-9 w-40 flex-shrink-0" />
+        </div>
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
+  }
   if (error) return <p className="text-destructive">{String(error)}</p>;
   if (!data) return <p>Not found.</p>;
 
-  const s = data.store;
+  const onRefresh = () => {
+    refresh.mutate(undefined, {
+      onSuccess: (r) => {
+        toast.success(
+          `Scraped ${r.categories} categories, ${r.items} items${
+            r.errors ? `, ${r.errors} errors` : ''
+          }`,
+        );
+      },
+      onError: (err) => {
+        toast.error(String(err));
+      },
+    });
+  };
+
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader><CardTitle>{s.name}</CardTitle></CardHeader>
-        <CardContent className="space-y-1 text-sm">
-          <div>Vendor: {s.vendor}</div>
-          <div>Slug: {s.slug}</div>
-          <div>Address: {s.address ?? '—'}</div>
-          <div>Status: {s.online ? 'online' : 'offline'}</div>
-        </CardContent>
-      </Card>
-    </div>
+    <StoreDetail store={data.store} onRefresh={onRefresh} refreshing={refresh.isPending} />
   );
 }

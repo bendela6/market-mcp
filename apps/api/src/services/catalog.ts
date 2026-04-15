@@ -37,6 +37,7 @@ export interface HybridItemHit {
   available: boolean;
   deliveryPriceInt: number | null;
   score: number | null;
+  rawContent: Record<string, unknown> | null;
 }
 
 export interface CatalogService {
@@ -86,6 +87,7 @@ function hydrateHit(row: Record<string, unknown>): HybridItemHit {
     available: Boolean(row.available),
     deliveryPriceInt: null,
     score: row.score != null ? Number(row.score) : null,
+    rawContent: (row.raw_content as Record<string, unknown> | null) ?? null,
   };
 }
 
@@ -105,6 +107,7 @@ function hitToItem(h: HybridItemHit): Item {
     imageUrl: h.imageUrl ?? undefined,
     available: h.available,
     score: h.score ?? undefined,
+    vendorData: h.rawContent ?? undefined,
   };
 }
 
@@ -196,6 +199,7 @@ export function createCatalogService(db: DbClient): CatalogService {
         currency: p.currency,
         available: !p.disabled,
         tags: p.tags ?? [],
+        rawContent: (p.raw ?? null) as Record<string, unknown> | null,
         lastSeenAt: new Date(),
       }));
 
@@ -214,6 +218,7 @@ export function createCatalogService(db: DbClient): CatalogService {
             currency: sql`excluded.currency`,
             available: sql`excluded.available`,
             tags: sql`excluded.tags`,
+            rawContent: sql`excluded.raw_content`,
             lastSeenAt: sql`excluded.last_seen_at`,
           },
         })
@@ -303,6 +308,7 @@ export function createCatalogService(db: DbClient): CatalogService {
           gtin: items.gtin,
           imageUrl: items.imageUrl,
           available: items.available,
+          rawContent: items.rawContent,
         })
         .from(items)
         .innerJoin(stores, eq(stores.id, items.storeId))
@@ -329,6 +335,7 @@ export function createCatalogService(db: DbClient): CatalogService {
           gtin: r.gtin ?? undefined,
           imageUrl: r.imageUrl ?? undefined,
           available: r.available,
+          vendorData: r.rawContent ?? undefined,
         })),
         total: Number(n),
       };
@@ -350,6 +357,7 @@ export function createCatalogService(db: DbClient): CatalogService {
           gtin: items.gtin,
           imageUrl: items.imageUrl,
           available: items.available,
+          rawContent: items.rawContent,
         })
         .from(items)
         .innerJoin(stores, eq(stores.id, items.storeId))
@@ -371,6 +379,7 @@ export function createCatalogService(db: DbClient): CatalogService {
         gtin: r.gtin ?? undefined,
         imageUrl: r.imageUrl ?? undefined,
         available: r.available,
+        vendorData: r.rawContent ?? undefined,
       };
     },
 
@@ -382,7 +391,7 @@ export function createCatalogService(db: DbClient): CatalogService {
       const rows = await db.execute<Record<string, unknown>>(sql`
         SELECT
           i.id, i.slug, i.vendor, i.store_id, i.name, i.description, i.price_minor, i.currency,
-          i.gtin, i.image_url, i.available,
+          i.gtin, i.image_url, i.available, i.raw_content,
           s.slug AS store_slug, s.name AS store_name,
           NULL::double precision AS score
         FROM items i
@@ -446,7 +455,7 @@ async function searchHybrid(db: DbClient, embedder: Embedder, query: string, lim
       )
     SELECT
       i.id, i.slug, i.vendor, i.store_id, i.name, i.description, i.price_minor, i.currency,
-      i.gtin, i.image_url, i.available,
+      i.gtin, i.image_url, i.available, i.raw_content,
       s.slug AS store_slug, s.name AS store_name,
       f.score
     FROM fused f
@@ -462,7 +471,7 @@ async function searchKeyword(db: DbClient, query: string, limit: number): Promis
   const rows = await db.execute<Record<string, unknown>>(sql`
     SELECT
       i.id, i.slug, i.vendor, i.store_id, i.name, i.description, i.price_minor, i.currency,
-      i.gtin, i.image_url, i.available,
+      i.gtin, i.image_url, i.available, i.raw_content,
       s.slug AS store_slug, s.name AS store_name,
       ts_rank(to_tsvector('simple', i.search_text), plainto_tsquery('simple', ${query})) AS score
     FROM items i

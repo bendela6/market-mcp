@@ -1,30 +1,27 @@
 import { useParams } from '@tanstack/react-router';
-import { Card, CardContent, CardHeader, CardTitle, Skeleton } from '@market/ui';
+import { Skeleton } from '@market/ui';
 import { useItem } from '../../hooks/use-item.js';
-
-function formatMinor(minor: number, currency: string): string {
-  return `${(minor / 100).toFixed(2)} ${currency}`;
-}
+import { ProductDetail } from '../../features/products/product-detail.js';
 
 export function ProductDetailPage() {
   const { idOrSlug } = useParams({ from: '/products/$idOrSlug' });
   const { data, isLoading, error } = useItem(idOrSlug);
 
-  if (isLoading) return <Skeleton className="h-40 w-full" />;
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="mx-auto aspect-video w-full max-w-[910px]" />
+        <div className="mx-auto max-w-2xl space-y-3">
+          <Skeleton className="h-8 w-2/3" />
+          <Skeleton className="h-4 w-1/3" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      </div>
+    );
+  }
   if (error) return <p className="text-destructive">{String(error)}</p>;
   if (!data) return <p>Not found.</p>;
 
-  const it = data.item;
-  return (
-    <Card>
-      <CardHeader><CardTitle>{it.name}</CardTitle></CardHeader>
-      <CardContent className="space-y-2 text-sm">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{it.storeName} · {it.vendor}</span>
-          <span className="font-semibold">{formatMinor(it.priceMinor, it.currency)}</span>
-        </div>
-        {it.description && <p className="text-muted-foreground">{it.description}</p>}
-      </CardContent>
-    </Card>
-  );
+  return <ProductDetail item={data.item} />;
 }
