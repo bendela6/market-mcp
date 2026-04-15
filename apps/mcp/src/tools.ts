@@ -2,192 +2,287 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { ROUTES } from '@market/contracts';
 import type {
-  BuildShoppingListBody,
-  BuildShoppingListResponse,
-  CatalogStatsResponse,
-  GetVenueResponse,
-  ListVenuesResponse,
-  RefreshAssortmentResponse,
-  SearchItemsResponse,
+  AddPlanLineBody, CatalogStatsResponse, ComputePlanResponse, CreatePlanBody,
+  GetItemResponse, GetStoreResponse, ItemQueryBody, ItemQueryResponse, Plan,
+  PlanDetail, PlanQueryBody, PlanQueryResponse, RefreshAssortmentResponse,
+  StoreQueryBody, StoreQueryResponse, UpdatePlanBody, UpdatePlanLineBody,
 } from '@market/contracts';
 import type { ApiClient } from './api-client.js';
+import { userHeaders } from './api-client.js';
+import { environment } from './environment.js';
 
 const VendorEnum = z.enum(['wolt', 'glovo', 'bolt-food', 'europroduct', 'goodwill']);
+const ProductLineEnum = z.enum(['restaurant', 'store', 'grocery', 'pharmacy', 'other']);
 
 function ok(data: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
 }
 
+function mkUser() { return userHeaders(environment.MARKET_USER_ID); }
+
+const SortItem = z.object({ field: z.string(), direction: z.enum(['asc', 'desc']) });
+
 export function registerMarketTools(server: McpServer, api: ApiClient): void {
+  // --- stores ---
   server.registerTool(
-    'market_search_venues',
+    'market_query_stores',
     {
-      title: 'Search venues across market vendors',
-      description:
-        'Search venues (restaurants, grocery stores) by free-text query. Hits api which proxies to the chosen vendor (wolt/glovo/etc).',
+      title: 'Query stores',
+      description: 'List/search stores with pagination, filters, sort.',
       inputSchema: {
-        query: z.string().min(1).describe('Free-text query'),
-        vendor: VendorEnum.optional().describe('Limit to one vendor; omit for all'),
-        limit: z.number().int().min(1).max(500).optional(),
-      },
-      annotations: { readOnlyHint: true, openWorldHint: true },
-    },
-    async ({ query, vendor, limit }) => {
-      const q = new URLSearchParams({ q: query });
-      if (vendor) q.set('vendor', vendor);
-      if (limit) q.set('limit', String(limit));
-      const result = await api.get<ListVenuesResponse>(`${ROUTES.venues.list}?${q.toString()}`);
-      return ok(result);
-    },
-  );
-
-  server.registerTool(
-    'market_discover_venues',
-    {
-      title: 'Discover venues',
-      description: 'List venues for the configured location. Same endpoint as search without a query.',
-      inputSchema: {
+        skip: z.number().int().min(0).optional(),
+        take: z.number().int().min(1).max(500).optional(),
+        q: z.string().optional(),
+        sort: z.array(SortItem).optional(),
         vendor: VendorEnum.optional(),
-        productLine: z.enum(['restaurant', 'store', 'grocery', 'pharmacy', 'other']).optional(),
-        limit: z.number().int().min(1).max(2000).optional(),
-      },
-      annotations: { readOnlyHint: true, openWorldHint: true },
-    },
-    async ({ vendor, productLine, limit }) => {
-      const q = new URLSearchParams();
-      if (vendor) q.set('vendor', vendor);
-      if (productLine) q.set('productLine', productLine);
-      if (limit) q.set('limit', String(limit));
-      const result = await api.get<ListVenuesResponse>(`${ROUTES.venues.list}?${q.toString()}`);
-      return ok(result);
-    },
-  );
-
-  server.registerTool(
-    'market_list_venues',
-    {
-      title: 'List stored venues',
-      description: 'List venues already stored in the local catalog without fetching upstream.',
-      inputSchema: {
-        vendor: VendorEnum.optional(),
-        productLine: z.enum(['restaurant', 'store', 'grocery', 'pharmacy', 'other']).optional(),
+        productLine: ProductLineEnum.optional(),
         online: z.boolean().optional(),
-        limit: z.number().int().min(1).max(2000).optional(),
       },
-      annotations: { readOnlyHint: true, openWorldHint: false, idempotentHint: true },
+      annotations: { readOnlyHint: true },
     },
-    async ({ vendor, productLine, online, limit }) => {
-      const q = new URLSearchParams();
-      if (vendor) q.set('vendor', vendor);
-      if (productLine) q.set('productLine', productLine);
-      if (online != null) q.set('online', String(online));
-      if (limit) q.set('limit', String(limit));
-      const result = await api.get<ListVenuesResponse>(`${ROUTES.venues.list}?${q.toString()}`);
-      return ok(result);
+    async (input) => {
+      const body: StoreQueryBody = input as StoreQueryBody;
+      return ok(await api.post<StoreQueryResponse>(ROUTES.stores.query, body));
     },
   );
 
   server.registerTool(
-    'market_get_venue',
+    'market_get_store',
     {
-      title: 'Get a venue by vendor + slug',
-      description: 'Fetch venue detail from api.',
-      inputSchema: { vendor: VendorEnum, slug: z.string().min(1) },
-      annotations: { readOnlyHint: true, openWorldHint: false },
+      title: 'Get a store by id or slug',
+      description: 'Fetch a single store (and its assortment content).',
+      inputSchema: { idOrSlug: z.string().min(1) },
+      annotations: { readOnlyHint: true },
     },
-    async ({ vendor, slug }) => {
-      const result = await api.get<GetVenueResponse>(ROUTES.venues.get(vendor, slug));
-      return ok(result);
-    },
+    async ({ idOrSlug }) => ok(await api.get<GetStoreResponse>(ROUTES.stores.get(idOrSlug))),
   );
 
   server.registerTool(
     'market_refresh_assortment',
     {
-      title: 'Refresh venue assortment',
-      description: 'Trigger a live fetch of a venue assortment and persist it.',
-      inputSchema: { vendor: VendorEnum, slug: z.string().min(1) },
+      title: 'Refresh store assortment',
+      description: 'Trigger a live crawl of a store and persist results.',
+      inputSchema: { idOrSlug: z.string().min(1) },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     },
-    async ({ vendor, slug }) => {
-      const result = await api.post<RefreshAssortmentResponse>(
-        ROUTES.venues.refreshAssortment(vendor, slug),
-        {},
-      );
-      return ok(result);
+    async ({ idOrSlug }) =>
+      ok(await api.post<RefreshAssortmentResponse>(ROUTES.stores.refreshAssortment(idOrSlug), {})),
+  );
+
+  server.registerTool(
+    'market_discover_stores',
+    {
+      title: 'Discover stores via vendor SDK',
+      description: 'Query vendor SDK directly (ephemeral, bypasses DB).',
+      inputSchema: {
+        vendor: VendorEnum.optional(),
+        productLine: ProductLineEnum.optional(),
+        limit: z.number().int().min(1).max(2000).optional(),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async (input) => {
+      const { limit, ...rest } = input;
+      const body = { ...rest, take: limit ?? 200 } as StoreQueryBody;
+      return ok(await api.post<StoreQueryResponse>(ROUTES.stores.query, body));
+    },
+  );
+
+  // --- catalog ---
+  server.registerTool(
+    'market_query_items',
+    {
+      title: 'Query catalog items',
+      description: 'List/search items with pagination, filters, sort.',
+      inputSchema: {
+        skip: z.number().int().min(0).optional(),
+        take: z.number().int().min(1).max(500).optional(),
+        q: z.string().optional(),
+        sort: z.array(SortItem).optional(),
+        mode: z.enum(['keyword', 'semantic', 'hybrid']).optional(),
+        vendor: VendorEnum.optional(),
+        storeIdOrSlug: z.string().optional(),
+        categoryIdOrSlug: z.string().optional(),
+        minPriceMinor: z.number().int().min(0).optional(),
+        maxPriceMinor: z.number().int().min(0).optional(),
+        available: z.boolean().optional(),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async (input) => {
+      const body: ItemQueryBody = input as ItemQueryBody;
+      return ok(await api.post<ItemQueryResponse>(ROUTES.catalog.itemQuery, body));
     },
   );
 
   server.registerTool(
-    'market_search_items',
+    'market_get_item',
     {
-      title: 'Search items in the catalog',
-      description:
-        'Full-text + semantic (hybrid) search over stored items. Use refresh_assortment or the crawler to populate.',
-      inputSchema: {
-        query: z.string().min(1),
-        mode: z.enum(['keyword', 'semantic', 'hybrid']).optional(),
-        vendor: VendorEnum.optional(),
-        limit: z.number().int().min(1).max(500).optional(),
-      },
-      annotations: { readOnlyHint: true, openWorldHint: false, idempotentHint: true },
+      title: 'Get a catalog item by id or slug',
+      description: 'Fetch a single item.',
+      inputSchema: { idOrSlug: z.string().min(1) },
+      annotations: { readOnlyHint: true },
     },
-    async ({ query, mode, vendor, limit }) => {
-      const q = new URLSearchParams({ q: query });
-      if (mode) q.set('mode', mode);
-      if (vendor) q.set('vendor', vendor);
-      if (limit) q.set('limit', String(limit));
-      const result = await api.get<SearchItemsResponse>(`${ROUTES.catalog.search}?${q.toString()}`);
-      return ok(result);
-    },
+    async ({ idOrSlug }) => ok(await api.get<GetItemResponse>(ROUTES.catalog.itemGet(idOrSlug))),
   );
 
   server.registerTool(
     'market_catalog_stats',
     {
       title: 'Catalog statistics',
-      description: 'How many venues, categories, and items are indexed.',
+      description: 'Indexed stores, categories, items, embeddings.',
       inputSchema: {},
-      annotations: { readOnlyHint: true, openWorldHint: false, idempotentHint: true },
+      annotations: { readOnlyHint: true },
     },
-    async () => {
-      const result = await api.get<CatalogStatsResponse>(ROUTES.catalog.stats);
-      return ok(result);
+    async () => ok(await api.get<CatalogStatsResponse>(ROUTES.catalog.stats)),
+  );
+
+  // --- plans ---
+  server.registerTool(
+    'market_query_plans',
+    {
+      title: 'Query plans',
+      description: 'List plans for the configured user.',
+      inputSchema: {
+        skip: z.number().int().min(0).optional(),
+        take: z.number().int().min(1).max(500).optional(),
+        q: z.string().optional(),
+        sort: z.array(SortItem).optional(),
+        type: z.enum(['mixed', 'item-based', 'query-based']).optional(),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async (input) => {
+      const body: PlanQueryBody = input as PlanQueryBody;
+      return ok(await api.post<PlanQueryResponse>(ROUTES.plans.query, body, mkUser()));
     },
   );
 
   server.registerTool(
-    'market_build_shopping_list',
+    'market_create_plan',
     {
-      title: 'Build an optimized shopping list',
-      description:
-        'Given items (name or barcode) and a strategy, return the optimized plan. Prices are integer minor units (e.g. tetri for GEL).',
+      title: 'Create a plan',
+      description: 'Create a new persisted plan for the configured user.',
       inputSchema: {
-        items: z
-          .array(
-            z.object({
-              query: z.string().min(1),
-              quantity: z.number().int().min(1).optional(),
-            }),
-          )
-          .min(1),
+        name: z.string().min(1),
+        type: z.enum(['mixed', 'item-based', 'query-based']),
         strategy: z.enum(['cheapest-per-item', 'single-store', 'both']),
         vendor: VendorEnum.optional(),
-        venueSlugs: z.array(z.string()).optional(),
+        storeSlugs: z.array(z.string()).optional(),
         includeOffline: z.boolean().optional(),
       },
-      annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (input) => {
-      const body: BuildShoppingListBody = {
-        items: input.items.map((i) => ({ query: i.query, quantity: i.quantity ?? 1 })),
-        strategy: input.strategy,
-        vendor: input.vendor,
-        venueSlugs: input.venueSlugs,
-        includeOffline: input.includeOffline ?? false,
-      };
-      const result = await api.post<BuildShoppingListResponse>(ROUTES.shoppingList, body);
-      return ok(result);
+      const body = input as CreatePlanBody;
+      return ok(await api.post<Plan>(ROUTES.plans.create, body, mkUser()));
     },
+  );
+
+  server.registerTool(
+    'market_get_plan',
+    {
+      title: 'Get a plan',
+      description: 'Fetch a plan and its lines.',
+      inputSchema: { idOrSlug: z.string().min(1) },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ idOrSlug }) => ok(await api.get<PlanDetail>(ROUTES.plans.get(idOrSlug), mkUser())),
+  );
+
+  server.registerTool(
+    'market_update_plan',
+    {
+      title: 'Update plan metadata',
+      description: 'Update name, strategy, filters; type is immutable.',
+      inputSchema: {
+        idOrSlug: z.string().min(1),
+        name: z.string().min(1).optional(),
+        strategy: z.enum(['cheapest-per-item', 'single-store', 'both']).optional(),
+        vendor: VendorEnum.optional(),
+        storeSlugs: z.array(z.string()).optional(),
+        includeOffline: z.boolean().optional(),
+      },
+    },
+    async ({ idOrSlug, ...rest }) => {
+      const body = rest as UpdatePlanBody;
+      return ok(await api.patch<Plan>(ROUTES.plans.update(idOrSlug), body, mkUser()));
+    },
+  );
+
+  server.registerTool(
+    'market_delete_plan',
+    {
+      title: 'Delete a plan',
+      description: 'Delete a plan and its lines.',
+      inputSchema: { idOrSlug: z.string().min(1) },
+      annotations: { destructiveHint: true },
+    },
+    async ({ idOrSlug }) => {
+      await api.del(ROUTES.plans.delete(idOrSlug), mkUser());
+      return ok({ deleted: idOrSlug });
+    },
+  );
+
+  server.registerTool(
+    'market_add_plan_line',
+    {
+      title: 'Add a line to a plan',
+      description: 'Add a query line or lock in a specific item.',
+      inputSchema: {
+        idOrSlug: z.string().min(1),
+        kind: z.enum(['query', 'item']),
+        query: z.string().optional(),
+        itemIdOrSlug: z.string().optional(),
+        quantity: z.number().int().min(1).optional(),
+      },
+    },
+    async ({ idOrSlug, ...rest }) => {
+      const body = rest as AddPlanLineBody;
+      return ok(await api.post(ROUTES.plans.lines.add(idOrSlug), body, mkUser()));
+    },
+  );
+
+  server.registerTool(
+    'market_update_plan_line',
+    {
+      title: 'Update a plan line',
+      description: 'Update quantity or the query text on a query line.',
+      inputSchema: {
+        idOrSlug: z.string().min(1),
+        lineId: z.string().min(1),
+        quantity: z.number().int().min(1).optional(),
+        query: z.string().optional(),
+      },
+    },
+    async ({ idOrSlug, lineId, ...rest }) => {
+      const body = rest as UpdatePlanLineBody;
+      return ok(await api.patch(ROUTES.plans.lines.update(idOrSlug, lineId), body, mkUser()));
+    },
+  );
+
+  server.registerTool(
+    'market_remove_plan_line',
+    {
+      title: 'Remove a plan line',
+      description: 'Delete a single line from a plan.',
+      inputSchema: { idOrSlug: z.string().min(1), lineId: z.string().min(1) },
+      annotations: { destructiveHint: true },
+    },
+    async ({ idOrSlug, lineId }) => {
+      await api.del(ROUTES.plans.lines.delete(idOrSlug, lineId), mkUser());
+      return ok({ deleted: lineId });
+    },
+  );
+
+  server.registerTool(
+    'market_compute_plan',
+    {
+      title: 'Compute plan',
+      description: 'Run the strategy against the stored lines and return the plan result.',
+      inputSchema: { idOrSlug: z.string().min(1) },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ idOrSlug }) =>
+      ok(await api.post<ComputePlanResponse>(ROUTES.plans.compute(idOrSlug), {}, mkUser())),
   );
 }

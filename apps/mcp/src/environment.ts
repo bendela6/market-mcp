@@ -9,6 +9,7 @@ const Schema = v.object({
   MCP_PORT: v.optional(v.pipe(v.string(), v.transform(Number), v.integer()), '8787'),
   MCP_TLS_CERT: v.optional(v.string()),
   MCP_TLS_KEY: v.optional(v.string()),
+  MARKET_USER_ID: v.optional(v.pipe(v.string(), v.uuid())),
 });
 
 export type Environment = v.InferOutput<typeof Schema>;
