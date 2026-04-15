@@ -1,10 +1,16 @@
 export type {
-  VenueRow,
-  VenueInsert,
+  UserRow,
+  UserInsert,
+  StoreRow,
+  StoreInsert,
   CategoryRow,
   CategoryInsert,
   ItemRow,
   ItemInsert,
   ItemEmbeddingRow,
   ItemEmbeddingInsert,
+  PlanRow,
+  PlanInsert,
+  PlanLineRow,
+  PlanLineInsert,
 } from './schema.js';
