@@ -4,10 +4,11 @@ import type {
   AssortmentIndex,
   CategoryPage,
   Product,
+  ProductLine,
   Venue,
   VenueContent,
 } from '@market/vendor-core';
-import type { WoltConfig } from './config.js';
+import { WOLT_STORE_CATEGORIES, type WoltConfig } from './config.js';
 
 function headers(config: WoltConfig): Record<string, string> {
   return {
@@ -21,6 +22,40 @@ function headers(config: WoltConfig): Record<string, string> {
     // base64 of "¤1,234.56" — Wolt's generic currency format hint
     'app-currency-format': 'wqQxLDIzNC41Ng==',
   };
+}
+
+/**
+ * Wolt returns ~10 raw product_line strings (alcohol, electronics, florist, …).
+ * The core ProductLine enum only has 5 buckets, so collapse anything that
+ * isn't a direct match into 'store' (or 'other' for genuinely unknown values).
+ * The original raw value is preserved on `Venue.raw` for downstream consumers.
+ */
+function normalizeProductLine(raw: unknown): ProductLine | undefined {
+  if (typeof raw !== 'string' || raw.length === 0) return undefined;
+  switch (raw) {
+    case 'restaurant':
+      return 'restaurant';
+    case 'grocery':
+      return 'grocery';
+    case 'pharmacy':
+      return 'pharmacy';
+    case 'store':
+    case 'alcohol':
+    case 'florist':
+    case 'electronics':
+    case 'home_and_diy':
+    case 'toys_games_and_kids':
+    case 'pet_supply':
+    case 'general_merchandise':
+    case 'health_and_beauty':
+      return 'store';
+    default:
+      return 'other';
+  }
+}
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 async function getJson(url: string, config: WoltConfig): Promise<unknown> {
@@ -54,7 +89,12 @@ async function postJson(url: string, payload: unknown, config: WoltConfig): Prom
 
 function normalizeVenue(v: Record<string, unknown> | null): Venue | null {
   if (!v || typeof v !== 'object' || !('slug' in v)) return null;
-  const loc = (v as { location?: { coordinates?: number[] } }).location?.coordinates;
+  const rawLoc = (v as { location?: unknown }).location;
+  // Wolt returns `location` as either a `[lon, lat]` tuple (discover/search
+  // pages) or `{coordinates: [lon, lat]}` (legacy). Handle both.
+  const loc: number[] | undefined = Array.isArray(rawLoc)
+    ? (rawLoc as number[])
+    : (rawLoc as { coordinates?: number[] } | undefined)?.coordinates;
   const get = <K extends string>(key: K): unknown => (v as Record<string, unknown>)[key];
   const rating = get('rating') as { score?: number; volume?: number } | undefined;
   const estimateRange = get('estimate_range') as { min: number; max: number } | undefined;
@@ -83,27 +123,41 @@ function normalizeVenue(v: Record<string, unknown> | null): Venue | null {
     online: get('online') as boolean | undefined,
     tags: get('tags') as string[] | undefined,
     categories: get('categories') as string[] | undefined,
-    productLine: get('product_line') as Venue['productLine'],
+    productLine: normalizeProductLine(get('product_line')),
     iconUrl: typeof icon === 'object' ? icon?.url : (icon as string | undefined),
     brandImageUrl: typeof brand === 'object' ? brand?.url : (brand as string | undefined),
     raw: v,
   };
 }
 
+function collectVenueObjects(data: unknown): Array<Record<string, unknown>> {
+  const out: Array<Record<string, unknown>> = [];
+  const sections = (data as { sections?: unknown[] })?.sections ?? [];
+  for (const sec of sections) {
+    const s = sec as Record<string, unknown>;
+    // /v1/pages/restaurants and /v1/pages/front: items[].venue
+    const items = (s.items as unknown[]) ?? [];
+    for (const it of items) {
+      const v = (it as { venue?: Record<string, unknown> }).venue;
+      if (v) out.push(v);
+    }
+    // /v1/pages/category/{slug}: each `venue-menu-item-list` section carries
+    // a single venue at section.venue.venue (the outer `venue` is a wrapper
+    // with template:'venue' and the actual record nested inside).
+    const wrapper = s.venue as { venue?: Record<string, unknown> } | undefined;
+    if (wrapper?.venue) out.push(wrapper.venue);
+  }
+  return out;
+}
+
 function extractVenuesFromPages(data: unknown): Venue[] {
   const out: Venue[] = [];
   const seen = new Set<string>();
-  const sections = (data as { sections?: unknown[] })?.sections ?? [];
-  for (const sec of sections) {
-    const items = (sec as { items?: unknown[] })?.items ?? [];
-    for (const it of items) {
-      const v = (it as { venue?: Record<string, unknown> }).venue;
-      if (!v) continue;
-      const n = normalizeVenue(v);
-      if (n && !seen.has(n.slug)) {
-        seen.add(n.slug);
-        out.push(n);
-      }
+  for (const v of collectVenueObjects(data)) {
+    const n = normalizeVenue(v);
+    if (n && !seen.has(n.slug)) {
+      seen.add(n.slug);
+      out.push(n);
     }
   }
   return out;
@@ -153,6 +207,7 @@ function normalizeItem(
 
 export interface WoltClient {
   discoverVenues(lat?: number, lon?: number): Promise<Venue[]>;
+  discoverCategoryVenues(categorySlug: string, lat?: number, lon?: number): Promise<Venue[]>;
   searchVenues(q: string, lat?: number, lon?: number): Promise<Venue[]>;
   getVenueContent(slug: string): Promise<VenueContent>;
   getAssortmentIndex(slug: string): Promise<AssortmentIndex>;
@@ -160,10 +215,41 @@ export interface WoltClient {
 }
 
 export function createWoltClient(config: WoltConfig): WoltClient {
-  return {
+  const client: WoltClient = {
     async discoverVenues(lat = config.defaultLat, lon = config.defaultLon) {
-      const url = `${config.restaurantApi}/v1/pages/restaurants?lat=${lat}&lon=${lon}`;
-      return extractVenuesFromPages(await getJson(url, config));
+      const seen = new Set<string>();
+      const merged: Venue[] = [];
+
+      const pushAll = (vs: Venue[]) => {
+        for (const v of vs) {
+          if (seen.has(v.slug)) continue;
+          seen.add(v.slug);
+          merged.push(v);
+        }
+      };
+
+      // Restaurants live on a dedicated GET endpoint that returns the full
+      // restaurant universe in one shot.
+      const restaurantsUrl = `${config.restaurantApi}/v1/pages/restaurants?lat=${lat}&lon=${lon}`;
+      pushAll(extractVenuesFromPages(await getJson(restaurantsUrl, config)));
+
+      // Stores (groceries, alcohol, pharmacy, electronics, ...) each live on
+      // their own POST page. Walk them sequentially with a small throttle.
+      for (const slug of WOLT_STORE_CATEGORIES) {
+        await sleep(config.discoverThrottleMs);
+        try {
+          pushAll(await client.discoverCategoryVenues(slug, lat, lon));
+        } catch (err) {
+          // One bad category shouldn't kill the whole discovery pass.
+          console.error(`[wolt] discoverCategoryVenues(${slug}) failed: ${String(err).slice(0, 200)}`);
+        }
+      }
+
+      return merged;
+    },
+    async discoverCategoryVenues(categorySlug, lat = config.defaultLat, lon = config.defaultLon) {
+      const url = `${config.restaurantApi}/v1/pages/category/${encodeURIComponent(categorySlug)}`;
+      return extractVenuesFromPages(await postJson(url, { lat, lon }, config));
     },
     async searchVenues(q, lat = config.defaultLat, lon = config.defaultLon) {
       const url = `${config.restaurantApi}/v1/pages/search`;
@@ -203,4 +289,5 @@ export function createWoltClient(config: WoltConfig): WoltClient {
       return { venueSlug, categorySlug, currency: resolvedCurrency, items };
     },
   };
+  return client;
 }
