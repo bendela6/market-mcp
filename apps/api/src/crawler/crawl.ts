@@ -40,7 +40,7 @@ async function main(): Promise<void> {
       lon: environment.WOLT_LON,
     });
     console.error(`[crawl] [${vid}] found ${list.length} venues`);
-    await catalog.upsertVenues(vid, list);
+    await catalog.upsertStores(vid, list);
     totalVenues += list.length;
 
     if (flags.has('--venues-only')) continue;
@@ -70,7 +70,7 @@ async function main(): Promise<void> {
             console.error(`[crawl] [${vid}] ${slug}/${cat.slug} failed: ${String(err).slice(0, 160)}`);
           }
         }
-        await catalog.touchVenueAssortmentRefresh(vid, slug);
+        await catalog.touchStoreAssortmentRefresh(vid, slug);
         if (i % 10 === 0) console.error(`[crawl] [${vid}] ${i}/${targetSlugs.length} ${slug}`);
       } catch (err) {
         errors++;

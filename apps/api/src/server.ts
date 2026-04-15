@@ -3,33 +3,44 @@ import cors from '@fastify/cors';
 import { environment } from './environment.js';
 import { getDb, closeDb } from './db/client.js';
 import { createCatalogService } from './services/catalog.js';
-import { createShoppingListService } from './services/shopping-list.js';
+import { createStoresService } from './services/stores.js';
+import { createPlansService } from './services/plans.js';
+import { createUsersService } from './services/users.js';
 import { getEmbedder } from './embeddings/index.js';
 import { getVendorRegistry } from './vendor-registry.js';
 import { authPlugin } from './plugins/auth.js';
+import { userPlugin } from './plugins/user.js';
 import {
   adminRoutes,
   catalogRoutes,
-  shoppingListRoutes,
-  venuesRoutes,
+  plansRoutes,
+  storesRoutes,
+  usersRoutes,
 } from './routes/index.js';
 import { startEmbeddingWorker, type EmbeddingWorkerHandle } from './workers/embedding-worker.js';
 
 async function main(): Promise<void> {
   const app = Fastify({ logger: { level: environment.NODE_ENV === 'production' ? 'info' : 'debug' } });
 
-  await app.register(cors, { origin: true });
+  await app.register(cors, {
+    origin: true,
+    allowedHeaders: ['content-type', 'authorization', 'x-user-id'],
+  });
   await app.register(authPlugin);
+  await app.register(userPlugin);
 
   const db = getDb();
   const embedder = getEmbedder();
   const registry = getVendorRegistry();
   const catalog = createCatalogService(db);
-  const shoppingList = createShoppingListService(catalog, embedder);
+  const storesSvc = createStoresService(db);
+  const usersSvc = createUsersService(db);
+  const plansSvc = createPlansService(db, catalog, embedder);
 
-  await app.register(venuesRoutes(catalog, registry));
+  await app.register(storesRoutes(storesSvc, catalog, registry));
   await app.register(catalogRoutes(catalog, embedder));
-  await app.register(shoppingListRoutes(shoppingList));
+  await app.register(plansRoutes(plansSvc));
+  await app.register(usersRoutes(usersSvc));
   await app.register(adminRoutes(catalog, registry));
 
   app.get('/health', async () => ({ ok: true }));

@@ -1,20 +1,21 @@
-import type { AnyColumn, SQL } from 'drizzle-orm';
-import { asc, desc } from 'drizzle-orm';
+import { asc, desc, type SQL } from 'drizzle-orm';
+import type { PgColumn } from 'drizzle-orm/pg-core';
 
 export interface SortItem {
   field: string;
   direction: 'asc' | 'desc';
 }
 
-export type SortMap<F extends string> = Record<F, AnyColumn | SQL>;
+export type OrderByArg = SQL | PgColumn;
+export type SortMap<F extends string> = Record<F, OrderByArg>;
 
 export function buildOrderBy<F extends string>(
   sort: SortItem[] | undefined,
   map: SortMap<F>,
-  fallback: SQL | AnyColumn,
-): Array<SQL | AnyColumn> {
+  fallback: OrderByArg,
+): OrderByArg[] {
   if (!sort || sort.length === 0) return [fallback];
-  const out: Array<SQL | AnyColumn> = [];
+  const out: OrderByArg[] = [];
   for (const s of sort) {
     const col = map[s.field as F];
     if (!col) continue;

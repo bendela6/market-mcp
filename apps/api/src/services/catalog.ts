@@ -311,7 +311,8 @@ export function createCatalogService(db: DbClient): CatalogService {
         .limit(body.take ?? 50)
         .offset(body.skip ?? 0);
 
-      const [{ n }] = await db.select({ n: count() }).from(items).where(where);
+      const [totalRow] = await db.select({ n: count() }).from(items).where(where);
+      const n = totalRow?.n ?? 0;
 
       return {
         data: rows.map((r) => ({

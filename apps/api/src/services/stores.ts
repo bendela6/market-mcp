@@ -48,9 +48,9 @@ export function createStoresService(db: DbClient): StoresService {
         .limit(body.take ?? 50)
         .offset(body.skip ?? 0);
 
-      const [{ n }] = await db.select({ n: count() }).from(stores).where(where);
+      const [totalRow] = await db.select({ n: count() }).from(stores).where(where);
 
-      return { data: rows.map(rowToStore), total: Number(n) };
+      return { data: rows.map(rowToStore), total: Number(totalRow?.n ?? 0) };
     },
 
     async getByIdOrSlug(idOrSlug) {

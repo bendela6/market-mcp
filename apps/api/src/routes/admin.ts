@@ -29,7 +29,7 @@ export function adminRoutes(
             lat: environment.WOLT_LAT,
             lon: environment.WOLT_LON,
           });
-          await catalog.upsertVenues(vid, list);
+          await catalog.upsertStores(vid, list);
           venuesSeen += list.length;
           if (parsed.output.venuesOnly) continue;
 
@@ -55,7 +55,7 @@ export function adminRoutes(
                   app.log.warn({ err, vid, slug, cat: cat.slug }, 'crawl cat failed');
                 }
               }
-              await catalog.touchVenueAssortmentRefresh(vid, slug);
+              await catalog.touchStoreAssortmentRefresh(vid, slug);
             } catch (err) {
               errors++;
               app.log.warn({ err, vid, slug }, 'crawl venue failed');

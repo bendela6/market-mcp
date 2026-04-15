@@ -1,4 +1,5 @@
-export { venuesRoutes } from './venues.js';
+export { storesRoutes } from './stores.js';
 export { catalogRoutes } from './catalog.js';
-export { shoppingListRoutes } from './shopping-list.js';
+export { plansRoutes } from './plans.js';
+export { usersRoutes } from './users.js';
 export { adminRoutes } from './admin.js';

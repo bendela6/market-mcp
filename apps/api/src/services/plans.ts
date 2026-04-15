@@ -62,7 +62,8 @@ function hitToCandidate(h: HybridItemHit): ItemCandidate {
 }
 
 async function rowToPlan(db: DbClient, r: PlanRow): Promise<Plan> {
-  const [{ n }] = await db.select({ n: count() }).from(planLines).where(eq(planLines.planId, r.id));
+  const [countRow] = await db.select({ n: count() }).from(planLines).where(eq(planLines.planId, r.id));
+  const n = countRow?.n ?? 0;
   return {
     id: r.id,
     slug: r.slug,
@@ -133,9 +134,9 @@ export function createPlansService(
         .limit(body.take ?? 50)
         .offset(body.skip ?? 0);
 
-      const [{ n }] = await db.select({ n: count() }).from(plans).where(where);
+      const [totalRow] = await db.select({ n: count() }).from(plans).where(where);
       const data = await Promise.all(rows.map((r) => rowToPlan(db, r)));
-      return { data, total: Number(n) };
+      return { data, total: Number(totalRow?.n ?? 0) };
     },
 
     async create(userId, body) {
@@ -206,11 +207,11 @@ export function createPlansService(
         throw new ValidationError('plan only accepts item lines');
       }
 
-      const [{ maxPos }] = await db
+      const [posRow] = await db
         .select({ maxPos: sql<number>`coalesce(max(${planLines.position}), -1)` })
         .from(planLines)
         .where(eq(planLines.planId, plan.id));
-      const position = Number(maxPos) + 1;
+      const position = Number(posRow?.maxPos ?? -1) + 1;
 
       let insert: Record<string, unknown>;
       if (body.kind === 'query') {
