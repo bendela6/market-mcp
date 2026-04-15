@@ -1,0 +1,44 @@
+{
+  "name": "@market/api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "lint": "eslint src",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check:circular": "madge --circular --extensions ts,tsx src",
+    "clean": "rimraf dist",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "crawl": "tsx src/crawler/crawl.ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.1",
+    "@market/contracts": "workspace:*",
+    "@market/vendor-bolt-food": "workspace:*",
+    "@market/vendor-core": "workspace:*",
+    "@market/vendor-europroduct": "workspace:*",
+    "@market/vendor-glovo": "workspace:*",
+    "@market/vendor-goodwill": "workspace:*",
+    "@market/vendor-wolt": "workspace:*",
+    "drizzle-orm": "^0.36.4",
+    "fastify": "^5.1.0",
+    "pg": "^8.13.1",
+    "undici": "^6.19.8",
+    "valibot": "^1.0.0-beta.9"
+  },
+  "devDependencies": {
+    "@market/config": "workspace:*",
+    "@types/node": "^22.9.0",
+    "@types/pg": "^8.11.10",
+    "drizzle-kit": "^0.28.1",
+    "madge": "^8.0.0",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

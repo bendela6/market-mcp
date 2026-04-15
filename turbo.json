@@ -1,0 +1,57 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "globalDependencies": ["**/.env.*local", ".env"],
+  "globalEnv": [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "API_URL",
+    "API_TOKEN",
+    "API_PORT",
+    "EMBEDDER",
+    "EMBEDDING_WORKER",
+    "VOYAGE_API_KEY",
+    "OPENAI_API_KEY",
+    "OLLAMA_BASE_URL",
+    "COHERE_API_KEY",
+    "ENABLED_VENDORS",
+    "WOLT_LAT",
+    "WOLT_LON",
+    "MCP_HTTP",
+    "MCP_PORT",
+    "MCP_TLS_CERT",
+    "MCP_TLS_KEY",
+    "VITE_API_URL",
+    "VITE_APP_NAME"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "build/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["^build"]
+    },
+    "lint": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "check:circular": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}

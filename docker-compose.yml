@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: market
+      POSTGRES_PASSWORD: market
+      POSTGRES_DB: market
+    ports: ["5432:5432"]
+    volumes: [postgres-data:/var/lib/postgresql/data]
+
+  api:
+    profiles: ["full"]
+    build: { context: ., target: api }
+    depends_on: [postgres]
+    environment:
+      DATABASE_URL: postgres://market:market@postgres:5432/market
+    ports: ["3000:3000"]
+
+  mcp:
+    profiles: ["full"]
+    build: { context: ., target: mcp }
+    depends_on: [api]
+    environment:
+      API_URL: http://api:3000
+      API_TOKEN: devtoken
+      MCP_HTTP: "1"
+      MCP_PORT: "8787"
+    ports: ["8787:8787"]
+
+volumes:
+  postgres-data:

@@ -1,0 +1,25 @@
+# Node / pnpm
+node_modules/
+.pnpm-store/
+
+# Build artefacts
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Legacy staging (kept in-tree for porting, deleted in Task 22)
+# Not ignored — it is the source of truth for the port tasks, deleted in Task 22.
+
+# Editor
+.vscode/
+.idea/
