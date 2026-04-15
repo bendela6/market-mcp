@@ -24,3 +24,32 @@ export const CoordinatesSchema = v.object({
   lat: v.number(),
   lon: v.number(),
 });
+
+export const SortDirectionSchema = v.picklist(['asc', 'desc'] as const);
+export const SortItemSchema = <F extends readonly string[]>(fields: F) =>
+  v.object({ field: v.picklist(fields), direction: SortDirectionSchema });
+
+export const PaginationBaseSchema = v.object({
+  skip: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)), 0),
+  take: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(500)), 50),
+  q:    v.optional(v.pipe(v.string(), v.minLength(1))),
+});
+
+export function envelope<T extends v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>>(item: T) {
+  return v.object({
+    data: v.array(item),
+    meta: v.object({
+      total: v.pipe(v.number(), v.integer(), v.minValue(0)),
+      skip:  v.pipe(v.number(), v.integer(), v.minValue(0)),
+      take:  v.pipe(v.number(), v.integer(), v.minValue(1)),
+      sort:  v.optional(v.array(v.object({
+        field: v.string(),
+        direction: SortDirectionSchema,
+      }))),
+    }),
+  });
+}
+
+export const IdOrSlugParamsSchema = v.object({
+  idOrSlug: v.pipe(v.string(), v.minLength(1)),
+});
