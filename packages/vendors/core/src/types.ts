@@ -96,3 +96,20 @@ export interface DiscoverVenuesInput {
   lat: number;
   lon: number;
 }
+
+export interface SearchItemsInput {
+  query: string;
+  lat: number;
+  lon: number;
+}
+
+/**
+ * Product hit from a vendor-wide item search. Carries the venue association
+ * so callers can resolve back to the owning store without a second lookup.
+ */
+export interface SearchItemHit {
+  product: Product;
+  venueId: string;
+  venueSlug: string;
+  venueName: string;
+}

@@ -5,6 +5,7 @@ import type {
   CategoryPage,
   Product,
   ProductLine,
+  SearchItemHit,
   Venue,
   VenueContent,
 } from '@market/vendor-core';
@@ -205,10 +206,51 @@ function normalizeItem(
   };
 }
 
+/**
+ * Wolt's search response wraps each item as:
+ *   items[].link.menu_item_details = { id, name, price, currency, image.url, ... }
+ * This shape differs from the per-venue assortment items consumed by
+ * normalizeItem: no `images` array, `unit_price` is a number not an object,
+ * and GTIN is absent (the search endpoint doesn't expose barcodes). Callers
+ * that need GTINs should refetch via the venue assortment API.
+ */
+function normalizeSearchMenuItem(raw: Record<string, unknown>): SearchItemHit | null {
+  const det = raw.menu_item_details as Record<string, unknown> | undefined;
+  if (!det || typeof det !== 'object') return null;
+  const venueSlug = (det.venue_slug as string | undefined) ?? '';
+  if (!venueSlug) return null;
+  const image = det.image as { url?: string } | undefined;
+  const unitPriceNum = det.unit_price;
+  const unitPriceType = det.unit_price_type as string | undefined;
+  return {
+    product: {
+      vendor: 'wolt',
+      id: String(det.id ?? ''),
+      name: (det.name as string) ?? '',
+      description: (det.description as string) || undefined,
+      price: Number(det.price ?? 0),
+      currency: (det.currency as string) ?? 'GEL',
+      unitPrice:
+        typeof unitPriceNum === 'number' && unitPriceType
+          ? { price: unitPriceNum, unit: unitPriceType }
+          : undefined,
+      gtin: null,
+      images: image?.url ? [image.url] : [],
+      tags: (det.tags as string[] | undefined) ?? undefined,
+      disabled: false,
+      raw: det,
+    },
+    venueId: String(det.venue_id ?? ''),
+    venueSlug,
+    venueName: (det.venue_name as string) ?? '',
+  };
+}
+
 export interface WoltClient {
   discoverVenues(lat?: number, lon?: number): Promise<Venue[]>;
   discoverCategoryVenues(categorySlug: string, lat?: number, lon?: number): Promise<Venue[]>;
   searchVenues(q: string, lat?: number, lon?: number): Promise<Venue[]>;
+  searchItems(q: string, lat?: number, lon?: number): Promise<SearchItemHit[]>;
   getVenueContent(slug: string): Promise<VenueContent>;
   getAssortmentIndex(slug: string): Promise<AssortmentIndex>;
   getCategoryItems(venueSlug: string, categorySlug: string, currency?: string): Promise<CategoryPage>;
@@ -252,8 +294,33 @@ export function createWoltClient(config: WoltConfig): WoltClient {
       return extractVenuesFromPages(await postJson(url, { lat, lon }, config));
     },
     async searchVenues(q, lat = config.defaultLat, lon = config.defaultLon) {
+      // target:'venues' returns up to 100 matching venues; target:null would
+      // only return the 4-venue "preview split" that backs the SearchPage hero.
       const url = `${config.restaurantApi}/v1/pages/search`;
-      return extractVenuesFromPages(await postJson(url, { q, target: null, lat, lon }, config));
+      return extractVenuesFromPages(
+        await postJson(url, { q, target: 'venues', lat, lon }, config),
+      );
+    },
+    async searchItems(q, lat = config.defaultLat, lon = config.defaultLon) {
+      // target:'items' returns up to 200 matching items across all venues.
+      const url = `${config.restaurantApi}/v1/pages/search`;
+      const data = (await postJson(url, { q, target: 'items', lat, lon }, config)) as {
+        sections?: Array<{ name?: string; items?: Array<{ link?: Record<string, unknown> }> }>;
+      };
+      const out: SearchItemHit[] = [];
+      const seen = new Set<string>();
+      for (const sec of data.sections ?? []) {
+        if (sec.name !== 'items') continue;
+        for (const it of sec.items ?? []) {
+          const hit = normalizeSearchMenuItem(it.link ?? {});
+          if (!hit) continue;
+          const key = `${hit.venueSlug}:${hit.product.id}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          out.push(hit);
+        }
+      }
+      return out;
     },
     async getVenueContent(slug) {
       const url = `${config.consumerApi}/consumer-api/venue-content-api/v3/web/venue-content/slug/${encodeURIComponent(slug)}`;
