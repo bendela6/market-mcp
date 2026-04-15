@@ -35,11 +35,12 @@ const Schema = v.pipe(
     DATABASE_URL: v.pipe(v.string(), v.url()),
     EMBEDDING_WORKER: v.picklist(['on', 'off'] as const),
     ENABLED_VENDORS: v.pipe(CsvList, v.array(VendorId)),
-    EMBEDDER: v.picklist(['voyage', 'openai', 'ollama', 'cohere'] as const),
+    EMBEDDER: v.picklist(['voyage', 'openai', 'ollama', 'cohere', 'gemini'] as const),
     VOYAGE_API_KEY: v.optional(v.string()),
     OPENAI_API_KEY: v.optional(v.string()),
     OLLAMA_BASE_URL: v.optional(v.pipe(v.string(), v.url())),
     COHERE_API_KEY: v.optional(v.string()),
+    GEMINI_API_KEY: v.optional(v.string()),
     WOLT_LAT: FloatFromString,
     WOLT_LON: FloatFromString,
   }),
@@ -51,6 +52,7 @@ const Schema = v.pipe(
         ['OPENAI_API_KEY'],
         ['OLLAMA_BASE_URL'],
         ['COHERE_API_KEY'],
+        ['GEMINI_API_KEY'],
       ],
       (input) => {
         switch (input.EMBEDDER) {
@@ -62,6 +64,8 @@ const Schema = v.pipe(
             return !!input.COHERE_API_KEY;
           case 'ollama':
             return !!input.OLLAMA_BASE_URL;
+          case 'gemini':
+            return !!input.GEMINI_API_KEY;
         }
       },
       'Selected EMBEDDER requires its corresponding API key / base URL',
