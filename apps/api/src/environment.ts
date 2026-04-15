@@ -1,11 +1,17 @@
 import * as v from 'valibot';
 import { parseEnv } from '@market/env';
 
-const NumberFromString = v.pipe(
+const IntegerFromString = v.pipe(
   v.string(),
   v.transform((s) => Number(s)),
   v.number(),
   v.integer(),
+);
+
+const FloatFromString = v.pipe(
+  v.string(),
+  v.transform((s) => Number(s)),
+  v.number(),
 );
 
 const CsvList = v.pipe(
@@ -24,7 +30,7 @@ const VendorId = v.picklist(['wolt', 'glovo', 'bolt-food', 'europroduct', 'goodw
 const Schema = v.pipe(
   v.object({
     NODE_ENV: v.picklist(['development', 'production', 'test'] as const),
-    API_PORT: v.pipe(NumberFromString, v.minValue(1), v.maxValue(65535)),
+    API_PORT: v.pipe(IntegerFromString, v.minValue(1), v.maxValue(65535)),
     API_TOKEN: v.pipe(v.string(), v.minLength(8)),
     DATABASE_URL: v.pipe(v.string(), v.url()),
     EMBEDDING_WORKER: v.picklist(['on', 'off'] as const),
@@ -34,8 +40,8 @@ const Schema = v.pipe(
     OPENAI_API_KEY: v.optional(v.string()),
     OLLAMA_BASE_URL: v.optional(v.pipe(v.string(), v.url())),
     COHERE_API_KEY: v.optional(v.string()),
-    WOLT_LAT: NumberFromString,
-    WOLT_LON: NumberFromString,
+    WOLT_LAT: FloatFromString,
+    WOLT_LON: FloatFromString,
   }),
   v.forward(
     v.partialCheck(
