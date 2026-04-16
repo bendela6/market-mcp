@@ -69,3 +69,40 @@ export type StoreQueryBody = v.InferOutput<typeof StoreQueryBodySchema>;
 export type StoreQueryResponse = v.InferOutput<typeof StoreQueryResponseSchema>;
 export type GetStoreResponse = v.InferOutput<typeof GetStoreResponseSchema>;
 export type RefreshAssortmentResponse = v.InferOutput<typeof RefreshAssortmentResponseSchema>;
+
+// ---------- Map endpoint ----------
+
+export const StoreMapPointSchema = v.object({
+  id:          v.string(),
+  slug:        v.string(),
+  name:        v.string(),
+  vendor:      VendorIdSchema,
+  vendorSlug:  v.string(),
+  productLine: v.optional(ProductLineSchema),
+  online:      v.optional(v.boolean()),
+  location:    CoordinatesSchema,
+});
+
+export const StoreMapQueryBodySchema = v.object({
+  q:           v.optional(v.string()),
+  vendor:      v.optional(VendorIdSchema),
+  productLine: v.optional(ProductLineSchema),
+  online:      v.optional(v.boolean()),
+  /** Optional viewport filter: [west, south, east, north] in degrees. */
+  bbox:        v.optional(v.tuple([v.number(), v.number(), v.number(), v.number()])),
+  /** Hard safety cap. Default 5000, max 10000. */
+  limit:       v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(10000))),
+});
+
+export const StoreMapQueryResponseSchema = v.object({
+  data: v.array(StoreMapPointSchema),
+  meta: v.object({
+    total:                      v.number(),
+    truncated:                  v.boolean(),
+    totalWithoutLocationFilter: v.number(),
+  }),
+});
+
+export type StoreMapPoint         = v.InferOutput<typeof StoreMapPointSchema>;
+export type StoreMapQueryBody     = v.InferOutput<typeof StoreMapQueryBodySchema>;
+export type StoreMapQueryResponse = v.InferOutput<typeof StoreMapQueryResponseSchema>;

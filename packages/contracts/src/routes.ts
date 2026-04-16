@@ -1,6 +1,7 @@
 export const ROUTES = {
   stores: {
     query:             '/v1/stores/query',
+    map:               '/v1/stores/map/query',
     get:               (id: string) => `/v1/stores/${id}`,
     refreshAssortment: (id: string) => `/v1/stores/${id}/refresh-assortment`,
   },
