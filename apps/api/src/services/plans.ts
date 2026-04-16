@@ -25,7 +25,6 @@ import type {
 import type { CatalogService, HybridItemHit } from './catalog.js';
 import type { Embedder } from '../embeddings/index.js';
 import { buildOrderBy } from '../lib/query-builder.js';
-import { isUuid, planWhere } from '../lib/id-or-slug.js';
 import { slugify } from '@market/vendor-core';
 import { randomBytes } from 'node:crypto';
 
@@ -35,13 +34,13 @@ export class ValidationError extends Error { constructor(msg: string) { super(ms
 export interface PlansService {
   query(userId: string, body: PlanQueryBody): Promise<{ data: Plan[]; total: number }>;
   create(userId: string, body: CreatePlanBody): Promise<Plan>;
-  getDetail(userId: string, idOrSlug: string): Promise<PlanDetail>;
-  update(userId: string, idOrSlug: string, body: UpdatePlanBody): Promise<Plan>;
-  remove(userId: string, idOrSlug: string): Promise<void>;
-  addLine(userId: string, idOrSlug: string, body: AddPlanLineBody): Promise<PlanLine>;
-  updateLine(userId: string, idOrSlug: string, lineId: string, body: UpdatePlanLineBody): Promise<PlanLine>;
-  removeLine(userId: string, idOrSlug: string, lineId: string): Promise<void>;
-  compute(userId: string, idOrSlug: string): Promise<ComputePlanResponse>;
+  getDetail(userId: string, id: string): Promise<PlanDetail>;
+  update(userId: string, id: string, body: UpdatePlanBody): Promise<Plan>;
+  remove(userId: string, id: string): Promise<void>;
+  addLine(userId: string, id: string, body: AddPlanLineBody): Promise<PlanLine>;
+  updateLine(userId: string, id: string, lineId: string, body: UpdatePlanLineBody): Promise<PlanLine>;
+  removeLine(userId: string, id: string, lineId: string): Promise<void>;
+  compute(userId: string, id: string): Promise<ComputePlanResponse>;
 }
 
 function looksLikeBarcode(s: string): boolean {
@@ -71,7 +70,7 @@ async function rowToPlan(db: DbClient, r: PlanRow): Promise<Plan> {
     type: r.type,
     strategy: r.strategy,
     vendor: r.vendor ?? undefined,
-    storeSlugs: r.storeSlugs ?? undefined,
+    storeIds: r.storeIds ?? undefined,
     includeOffline: r.includeOffline,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
@@ -148,15 +147,15 @@ export function createPlansService(
         type: body.type,
         strategy: body.strategy,
         vendor: body.vendor ?? null,
-        storeSlugs: body.storeSlugs ?? null,
+        storeIds: body.storeIds ?? null,
         includeOffline: body.includeOffline ?? false,
       }).returning();
       return rowToPlan(db, row!);
     },
 
-    async getDetail(userId, idOrSlug) {
+    async getDetail(userId, id) {
       const plan = await db.query.plans.findFirst({
-        where: and(planWhere(idOrSlug), eq(plans.userId, userId)),
+        where: and(eq(plans.id, id), eq(plans.userId, userId)),
       });
       if (!plan) throw new NotFoundError();
       const rows = await db.query.planLines.findMany({
@@ -167,9 +166,9 @@ export function createPlansService(
       return { plan: await rowToPlan(db, plan), lines };
     },
 
-    async update(userId, idOrSlug, body) {
+    async update(userId, id, body) {
       const existing = await db.query.plans.findFirst({
-        where: and(planWhere(idOrSlug), eq(plans.userId, userId)),
+        where: and(eq(plans.id, id), eq(plans.userId, userId)),
       });
       if (!existing) throw new NotFoundError();
       const [row] = await db.update(plans)
@@ -177,7 +176,7 @@ export function createPlansService(
           ...(body.name != null && { name: body.name }),
           ...(body.strategy != null && { strategy: body.strategy }),
           ...(body.vendor !== undefined && { vendor: body.vendor ?? null }),
-          ...(body.storeSlugs !== undefined && { storeSlugs: body.storeSlugs ?? null }),
+          ...(body.storeIds !== undefined && { storeIds: body.storeIds ?? null }),
           ...(body.includeOffline != null && { includeOffline: body.includeOffline }),
           updatedAt: new Date(),
         })
@@ -186,17 +185,17 @@ export function createPlansService(
       return rowToPlan(db, row!);
     },
 
-    async remove(userId, idOrSlug) {
+    async remove(userId, id) {
       const existing = await db.query.plans.findFirst({
-        where: and(planWhere(idOrSlug), eq(plans.userId, userId)),
+        where: and(eq(plans.id, id), eq(plans.userId, userId)),
       });
       if (!existing) throw new NotFoundError();
       await db.delete(plans).where(eq(plans.id, existing.id));
     },
 
-    async addLine(userId, idOrSlug, body) {
+    async addLine(userId, id, body) {
       const plan = await db.query.plans.findFirst({
-        where: and(planWhere(idOrSlug), eq(plans.userId, userId)),
+        where: and(eq(plans.id, id), eq(plans.userId, userId)),
       });
       if (!plan) throw new NotFoundError();
 
@@ -224,9 +223,7 @@ export function createPlansService(
           itemId: null,
         };
       } else {
-        const itemRow = isUuid(body.itemIdOrSlug)
-          ? await db.query.items.findFirst({ where: eq(items.id, body.itemIdOrSlug) })
-          : await db.query.items.findFirst({ where: eq(items.slug, body.itemIdOrSlug) });
+        const itemRow = await db.query.items.findFirst({ where: eq(items.id, body.itemId) });
         if (!itemRow) throw new ValidationError('item not found');
         insert = {
           planId: plan.id,
@@ -243,9 +240,9 @@ export function createPlansService(
       return lineRowToDto(db, row!);
     },
 
-    async updateLine(userId, idOrSlug, lineId, body) {
+    async updateLine(userId, id, lineId, body) {
       const plan = await db.query.plans.findFirst({
-        where: and(planWhere(idOrSlug), eq(plans.userId, userId)),
+        where: and(eq(plans.id, id), eq(plans.userId, userId)),
       });
       if (!plan) throw new NotFoundError();
       const line = await db.query.planLines.findFirst({
@@ -268,9 +265,9 @@ export function createPlansService(
       return lineRowToDto(db, row!);
     },
 
-    async removeLine(userId, idOrSlug, lineId) {
+    async removeLine(userId, id, lineId) {
       const plan = await db.query.plans.findFirst({
-        where: and(planWhere(idOrSlug), eq(plans.userId, userId)),
+        where: and(eq(plans.id, id), eq(plans.userId, userId)),
       });
       if (!plan) throw new NotFoundError();
       await db.delete(planLines).where(
@@ -279,9 +276,9 @@ export function createPlansService(
       await db.update(plans).set({ updatedAt: new Date() }).where(eq(plans.id, plan.id));
     },
 
-    async compute(userId, idOrSlug) {
+    async compute(userId, id) {
       const plan = await db.query.plans.findFirst({
-        where: and(planWhere(idOrSlug), eq(plans.userId, userId)),
+        where: and(eq(plans.id, id), eq(plans.userId, userId)),
       });
       if (!plan) throw new NotFoundError();
       const lineRows = await db.query.planLines.findMany({
@@ -289,7 +286,7 @@ export function createPlansService(
         orderBy: (t, { asc }) => [asc(t.position)],
       });
 
-      const storeFilter = plan.storeSlugs ? new Set(plan.storeSlugs) : null;
+      const storeFilter = plan.storeIds ? new Set(plan.storeIds) : null;
       const includeOffline = plan.includeOffline;
 
       const resolved = await Promise.all(lineRows.map(async (line) => {
@@ -305,6 +302,7 @@ export function createPlansService(
               priceMinor: items.priceMinor,
               currency: items.currency,
               available: items.available,
+              storeId: stores.id,
               storeSlug: stores.slug,
               storeName: stores.name,
             })
@@ -315,7 +313,7 @@ export function createPlansService(
           const r = row[0];
           const label = `item:${line.itemId}`;
           if (!r) return { query: label, quantity, candidates: [] as ItemCandidate[] };
-          if (storeFilter && !storeFilter.has(r.storeSlug)) return { query: label, quantity, candidates: [] };
+          if (storeFilter && !storeFilter.has(r.storeId)) return { query: label, quantity, candidates: [] };
           if (!includeOffline && !r.available) return { query: label, quantity, candidates: [] };
           const candidate: ItemCandidate = {
             venueSlug: r.storeSlug,
@@ -338,10 +336,10 @@ export function createPlansService(
         }
         const byStore = new Map<string, HybridItemHit>();
         for (const h of hits) {
-          if (storeFilter && !storeFilter.has(h.storeSlug)) continue;
+          if (storeFilter && !storeFilter.has(h.storeId)) continue;
           if (!includeOffline && !h.available) continue;
-          const existing = byStore.get(h.storeSlug);
-          if (!existing || h.priceMinor < existing.priceMinor) byStore.set(h.storeSlug, h);
+          const existing = byStore.get(h.storeId);
+          if (!existing || h.priceMinor < existing.priceMinor) byStore.set(h.storeId, h);
         }
         return {
           query: q,

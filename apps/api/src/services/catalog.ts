@@ -19,7 +19,6 @@ import {
 import type { Embedder } from '../embeddings/index.js';
 import type { ItemQueryBody, Item, CatalogStatsResponse } from '@market/contracts';
 import { buildOrderBy } from '../lib/query-builder.js';
-import { itemWhere, isUuid } from '../lib/id-or-slug.js';
 
 export interface HybridItemHit {
   id: string;
@@ -47,7 +46,7 @@ export interface CatalogService {
   touchStoreAssortmentRefresh(vendor: VendorId, storeVendorSlug: string): Promise<void>;
 
   queryItems(body: ItemQueryBody, embedder: Embedder): Promise<{ data: Item[]; total: number }>;
-  getItemByIdOrSlug(idOrSlug: string): Promise<Item | undefined>;
+  getItemById(id: string): Promise<Item | undefined>;
   searchItemsForPlan(query: string, embedder: Embedder, limit: number): Promise<HybridItemHit[]>;
   searchItemsByBarcodeForPlan(gtin: string): Promise<HybridItemHit[]>;
   stats(): Promise<CatalogStatsResponse>;
@@ -275,16 +274,8 @@ export function createCatalogService(db: DbClient): CatalogService {
       if (body.available != null) conds.push(eq(items.available, body.available));
       if (body.minPriceMinor != null) conds.push(sql`${items.priceMinor} >= ${body.minPriceMinor}`);
       if (body.maxPriceMinor != null) conds.push(sql`${items.priceMinor} <= ${body.maxPriceMinor}`);
-      if (body.storeIdOrSlug) {
-        const storeId = await resolveStoreId(db, body.storeIdOrSlug);
-        if (!storeId) return { data: [], total: 0 };
-        conds.push(eq(items.storeId, storeId));
-      }
-      if (body.categoryIdOrSlug) {
-        const catId = await resolveCategoryId(db, body.categoryIdOrSlug);
-        if (!catId) return { data: [], total: 0 };
-        conds.push(eq(items.categoryId, catId));
-      }
+      if (body.storeId) conds.push(eq(items.storeId, body.storeId));
+      if (body.categoryId) conds.push(eq(items.categoryId, body.categoryId));
       const where = conds.length ? and(...conds) : undefined;
 
       const order = buildOrderBy(body.sort, {
@@ -341,7 +332,7 @@ export function createCatalogService(db: DbClient): CatalogService {
       };
     },
 
-    async getItemByIdOrSlug(idOrSlug) {
+    async getItemById(id) {
       const row = await db
         .select({
           id: items.id,
@@ -361,7 +352,7 @@ export function createCatalogService(db: DbClient): CatalogService {
         })
         .from(items)
         .innerJoin(stores, eq(stores.id, items.storeId))
-        .where(itemWhere(idOrSlug))
+        .where(eq(items.id, id))
         .limit(1);
       const r = row[0];
       if (!r) return undefined;
@@ -483,14 +474,3 @@ async function searchKeyword(db: DbClient, query: string, limit: number): Promis
   return rows.rows.map(hydrateHit);
 }
 
-async function resolveStoreId(db: DbClient, idOrSlug: string): Promise<string | undefined> {
-  if (isUuid(idOrSlug)) return idOrSlug;
-  const row = await db.query.stores.findFirst({ where: eq(stores.slug, idOrSlug) });
-  return row?.id;
-}
-
-async function resolveCategoryId(db: DbClient, idOrSlug: string): Promise<string | undefined> {
-  if (isUuid(idOrSlug)) return idOrSlug;
-  const row = await db.query.categories.findFirst({ where: eq(categories.slug, idOrSlug) });
-  return row?.id;
-}

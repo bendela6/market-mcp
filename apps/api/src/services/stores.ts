@@ -3,12 +3,11 @@ import type { DbClient } from '../db/client.js';
 import { stores, type StoreRow } from '../db/schema.js';
 import type { StoreQueryBody, Store } from '@market/contracts';
 import { buildOrderBy } from '../lib/query-builder.js';
-import { storeWhere } from '../lib/id-or-slug.js';
 import { environment } from '../environment.js';
 
 export interface StoresService {
   query(body: StoreQueryBody): Promise<{ data: Store[]; total: number }>;
-  getByIdOrSlug(idOrSlug: string): Promise<StoreRow | undefined>;
+  getById(id: string): Promise<StoreRow | undefined>;
 }
 
 function rowToStore(r: StoreRow): Store {
@@ -77,8 +76,8 @@ export function createStoresService(db: DbClient): StoresService {
       return { data: rows.map(rowToStore), total: Number(totalRow?.n ?? 0) };
     },
 
-    async getByIdOrSlug(idOrSlug) {
-      return db.query.stores.findFirst({ where: storeWhere(idOrSlug) });
+    async getById(id) {
+      return db.query.stores.findFirst({ where: eq(stores.id, id) });
     },
   };
 }
