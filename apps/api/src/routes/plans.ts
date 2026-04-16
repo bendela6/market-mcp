@@ -1,12 +1,12 @@
 import type { FastifyPluginAsync } from 'fastify';
 import * as v from 'valibot';
 import {
+  API_PATHS,
   AddPlanLineBodySchema,
   CreatePlanBodySchema,
   IdParamsSchema,
   LineIdParamsSchema,
   PlanQueryBodySchema,
-  ROUTES,
   UpdatePlanBodySchema,
   UpdatePlanLineBodySchema,
   type ComputePlanResponse,
@@ -20,7 +20,7 @@ export function plansRoutes(plansSvc: PlansService): FastifyPluginAsync {
   return async (app) => {
     const preHandler = app.requireUser;
 
-    app.post(ROUTES.plans.query, { preHandler }, async (request, reply) => {
+    app.post(API_PATHS.plans.query, { preHandler }, async (request, reply) => {
       const parsed = v.safeParse(PlanQueryBodySchema, request.body ?? {});
       if (!parsed.success) { reply.code(400).send({ error: 'invalid body', issues: parsed.issues }); return; }
       const { data, total } = await plansSvc.query(request.userId!, parsed.output);
@@ -36,14 +36,14 @@ export function plansRoutes(plansSvc: PlansService): FastifyPluginAsync {
       return response;
     });
 
-    app.post(ROUTES.plans.create, { preHandler }, async (request, reply) => {
+    app.post(API_PATHS.plans.create, { preHandler }, async (request, reply) => {
       const parsed = v.safeParse(CreatePlanBodySchema, request.body);
       if (!parsed.success) { reply.code(400).send({ error: 'invalid body', issues: parsed.issues }); return; }
       const plan = await plansSvc.create(request.userId!, parsed.output);
       return plan;
     });
 
-    app.get('/v1/plans/:id', { preHandler }, async (request, reply) => {
+    app.get(API_PATHS.plans.get, { preHandler }, async (request, reply) => {
       const parsed = v.safeParse(IdParamsSchema, request.params);
       if (!parsed.success) { reply.code(400).send({ error: 'invalid params' }); return; }
       try {
@@ -55,7 +55,7 @@ export function plansRoutes(plansSvc: PlansService): FastifyPluginAsync {
       }
     });
 
-    app.patch('/v1/plans/:id', { preHandler }, async (request, reply) => {
+    app.patch(API_PATHS.plans.update, { preHandler }, async (request, reply) => {
       const p = v.safeParse(IdParamsSchema, request.params);
       if (!p.success) { reply.code(400).send({ error: 'invalid params' }); return; }
       const b = v.safeParse(UpdatePlanBodySchema, request.body);
@@ -68,7 +68,7 @@ export function plansRoutes(plansSvc: PlansService): FastifyPluginAsync {
       }
     });
 
-    app.delete('/v1/plans/:id', { preHandler }, async (request, reply) => {
+    app.delete(API_PATHS.plans.delete, { preHandler }, async (request, reply) => {
       const p = v.safeParse(IdParamsSchema, request.params);
       if (!p.success) { reply.code(400).send({ error: 'invalid params' }); return; }
       try {
@@ -80,7 +80,7 @@ export function plansRoutes(plansSvc: PlansService): FastifyPluginAsync {
       }
     });
 
-    app.post('/v1/plans/:id/lines', { preHandler }, async (request, reply) => {
+    app.post(API_PATHS.plans.addLine, { preHandler }, async (request, reply) => {
       const p = v.safeParse(IdParamsSchema, request.params);
       if (!p.success) { reply.code(400).send({ error: 'invalid params' }); return; }
       const b = v.safeParse(AddPlanLineBodySchema, request.body);
@@ -94,7 +94,7 @@ export function plansRoutes(plansSvc: PlansService): FastifyPluginAsync {
       }
     });
 
-    app.patch('/v1/plans/:id/lines/:lineId', { preHandler }, async (request, reply) => {
+    app.patch(API_PATHS.plans.updateLine, { preHandler }, async (request, reply) => {
       const p = v.safeParse(LineIdParamsSchema, request.params);
       if (!p.success) { reply.code(400).send({ error: 'invalid params' }); return; }
       const b = v.safeParse(UpdatePlanLineBodySchema, request.body);
@@ -108,7 +108,7 @@ export function plansRoutes(plansSvc: PlansService): FastifyPluginAsync {
       }
     });
 
-    app.delete('/v1/plans/:id/lines/:lineId', { preHandler }, async (request, reply) => {
+    app.delete(API_PATHS.plans.deleteLine, { preHandler }, async (request, reply) => {
       const p = v.safeParse(LineIdParamsSchema, request.params);
       if (!p.success) { reply.code(400).send({ error: 'invalid params' }); return; }
       try {
@@ -120,7 +120,7 @@ export function plansRoutes(plansSvc: PlansService): FastifyPluginAsync {
       }
     });
 
-    app.post('/v1/plans/:id/compute', { preHandler }, async (request, reply) => {
+    app.post(API_PATHS.plans.compute, { preHandler }, async (request, reply) => {
       const p = v.safeParse(IdParamsSchema, request.params);
       if (!p.success) { reply.code(400).send({ error: 'invalid params' }); return; }
       try {

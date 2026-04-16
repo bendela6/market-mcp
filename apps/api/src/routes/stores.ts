@@ -1,8 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify';
 import * as v from 'valibot';
 import {
+  API_PATHS,
   IdParamsSchema,
-  ROUTES,
   StoreMapQueryBodySchema,
   StoreQueryBodySchema,
   type GetStoreResponse,
@@ -20,7 +20,7 @@ export function storesRoutes(
   registry: VendorRegistry,
 ): FastifyPluginAsync {
   return async (app) => {
-    app.post(ROUTES.stores.query, async (request, reply) => {
+    app.post(API_PATHS.stores.query, async (request, reply) => {
       const parsed = v.safeParse(StoreQueryBodySchema, request.body);
       if (!parsed.success) {
         reply.code(400).send({ error: 'invalid body', issues: parsed.issues });
@@ -39,7 +39,7 @@ export function storesRoutes(
       return response;
     });
 
-    app.post(ROUTES.stores.map, async (request, reply) => {
+    app.post(API_PATHS.stores.map, async (request, reply) => {
       const parsed = v.safeParse(StoreMapQueryBodySchema, request.body);
       if (!parsed.success) {
         reply.code(400).send({ error: 'invalid body', issues: parsed.issues });
@@ -57,7 +57,7 @@ export function storesRoutes(
       return response;
     });
 
-    app.get('/v1/stores/:id', async (request, reply) => {
+    app.get(API_PATHS.stores.get, async (request, reply) => {
       const parsed = v.safeParse(IdParamsSchema, request.params);
       if (!parsed.success) { reply.code(400).send({ error: 'invalid params' }); return; }
       const row = await storesSvc.getById(parsed.output.id);
@@ -82,7 +82,7 @@ export function storesRoutes(
     });
 
     app.post(
-      '/v1/stores/:id/refresh-assortment',
+      API_PATHS.stores.refreshAssortment,
       async (request, reply) => {
         const parsed = v.safeParse(IdParamsSchema, request.params);
         if (!parsed.success) { reply.code(400).send({ error: 'invalid params' }); return; }

@@ -1,10 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
 import * as v from 'valibot';
 import {
+  API_PATHS,
   CatalogStatsResponseSchema,
   IdParamsSchema,
   ItemQueryBodySchema,
-  ROUTES,
   type CatalogStatsResponse,
   type GetItemResponse,
   type ItemQueryResponse,
@@ -14,7 +14,7 @@ import type { Embedder } from '../embeddings/index.js';
 
 export function catalogRoutes(catalog: CatalogService, embedder: Embedder): FastifyPluginAsync {
   return async (app) => {
-    app.post(ROUTES.catalog.itemQuery, async (request, reply) => {
+    app.post(API_PATHS.catalog.itemQuery, async (request, reply) => {
       const parsed = v.safeParse(ItemQueryBodySchema, request.body);
       if (!parsed.success) { reply.code(400).send({ error: 'invalid body', issues: parsed.issues }); return; }
       const { data, total } = await catalog.queryItems(parsed.output, embedder);
@@ -30,7 +30,7 @@ export function catalogRoutes(catalog: CatalogService, embedder: Embedder): Fast
       return response;
     });
 
-    app.get('/v1/catalog/items/:id', async (request, reply) => {
+    app.get(API_PATHS.catalog.itemGet, async (request, reply) => {
       const parsed = v.safeParse(IdParamsSchema, request.params);
       if (!parsed.success) { reply.code(400).send({ error: 'invalid params' }); return; }
       const item = await catalog.getItemById(parsed.output.id);
@@ -39,7 +39,7 @@ export function catalogRoutes(catalog: CatalogService, embedder: Embedder): Fast
       return response;
     });
 
-    app.get(ROUTES.catalog.stats, async () => {
+    app.get(API_PATHS.catalog.stats, async () => {
       const s = await catalog.stats();
       const response: CatalogStatsResponse = s;
       v.parse(CatalogStatsResponseSchema, response);

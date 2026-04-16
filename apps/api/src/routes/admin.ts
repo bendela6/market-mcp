@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import * as v from 'valibot';
-import { CrawlBodySchema, ROUTES, type CrawlResponse } from '@market/contracts';
+import { API_PATHS, CrawlBodySchema, type CrawlResponse } from '@market/contracts';
 import type { VendorRegistry } from '@market/vendor-core';
 import type { CatalogService } from '../services/catalog.js';
 import { environment } from '../environment.js';
@@ -10,7 +10,7 @@ export function adminRoutes(
   registry: VendorRegistry,
 ): FastifyPluginAsync {
   return async (app) => {
-    app.post(ROUTES.admin.crawl, { preHandler: app.requireApiToken }, async (request, reply) => {
+    app.post(API_PATHS.admin.crawl, { preHandler: app.requireApiToken }, async (request, reply) => {
       const parsed = v.safeParse(CrawlBodySchema, request.body);
       if (!parsed.success) {
         reply.code(400).send({ error: 'invalid body', issues: parsed.issues });
