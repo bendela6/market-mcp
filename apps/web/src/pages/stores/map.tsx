@@ -63,7 +63,7 @@ export default function StoresMapPage() {
     [updateSearch],
   );
 
-  const [mapRef, setMapRef] = useState<import('mapbox-gl').Map | null>(null);
+  const [mapRef, setMapRef] = useState<import('mapbox-gl').Map | null>(null); // eslint-disable-line @typescript-eslint/consistent-type-imports
   const selectedPoint = points?.find((p) => p.id === search.selected);
 
   return (
