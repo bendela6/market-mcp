@@ -3,9 +3,11 @@ import * as v from 'valibot';
 import {
   IdParamsSchema,
   ROUTES,
+  StoreMapQueryBodySchema,
   StoreQueryBodySchema,
   type GetStoreResponse,
   type RefreshAssortmentResponse,
+  type StoreMapQueryResponse,
   type StoreQueryResponse,
 } from '@market/contracts';
 import type { CatalogService } from '../services/catalog.js';
@@ -32,6 +34,24 @@ export function storesRoutes(
           skip: parsed.output.skip ?? 0,
           take: parsed.output.take ?? 50,
           sort: parsed.output.sort,
+        },
+      };
+      return response;
+    });
+
+    app.post(ROUTES.stores.map, async (request, reply) => {
+      const parsed = v.safeParse(StoreMapQueryBodySchema, request.body);
+      if (!parsed.success) {
+        reply.code(400).send({ error: 'invalid body', issues: parsed.issues });
+        return;
+      }
+      const result = await storesSvc.queryForMap(parsed.output);
+      const response: StoreMapQueryResponse = {
+        data: result.data,
+        meta: {
+          total: result.total,
+          truncated: result.truncated,
+          totalWithoutLocationFilter: result.totalWithoutLocationFilter,
         },
       };
       return response;
