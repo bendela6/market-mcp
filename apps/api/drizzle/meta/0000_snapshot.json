@@ -1,5 +1,5 @@
 {
-  "id": "3e923767-3370-41bc-900e-96f07ba88558",
+  "id": "edb7aa9e-2e3c-4e7b-843b-cdc61960628a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -10,14 +10,13 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "varchar(12)",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "store_id": {
           "name": "store_id",
-          "type": "uuid",
+          "type": "varchar(12)",
           "primaryKey": false,
           "notNull": true
         },
@@ -117,7 +116,7 @@
       "columns": {
         "item_id": {
           "name": "item_id",
-          "type": "uuid",
+          "type": "varchar(12)",
           "primaryKey": true,
           "notNull": true
         },
@@ -192,7 +191,7 @@
       "columns": {
         "item_id": {
           "name": "item_id",
-          "type": "uuid",
+          "type": "varchar(12)",
           "primaryKey": true,
           "notNull": true
         },
@@ -275,10 +274,9 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "varchar(12)",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "slug": {
           "name": "slug",
@@ -288,13 +286,13 @@
         },
         "store_id": {
           "name": "store_id",
-          "type": "uuid",
+          "type": "varchar(12)",
           "primaryKey": false,
           "notNull": true
         },
         "category_id": {
           "name": "category_id",
-          "type": "uuid",
+          "type": "varchar(12)",
           "primaryKey": false,
           "notNull": false
         },
@@ -360,6 +358,12 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'[]'::jsonb"
+        },
+        "raw_content": {
+          "name": "raw_content",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         },
         "search_text": {
           "name": "search_text",
@@ -502,14 +506,13 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "varchar(12)",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "plan_id": {
           "name": "plan_id",
-          "type": "uuid",
+          "type": "varchar(12)",
           "primaryKey": false,
           "notNull": true
         },
@@ -541,7 +544,7 @@
         },
         "item_id": {
           "name": "item_id",
-          "type": "uuid",
+          "type": "varchar(12)",
           "primaryKey": false,
           "notNull": false
         },
@@ -616,10 +619,9 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "varchar(12)",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "slug": {
           "name": "slug",
@@ -629,7 +631,7 @@
         },
         "user_id": {
           "name": "user_id",
-          "type": "uuid",
+          "type": "varchar(12)",
           "primaryKey": false,
           "notNull": true
         },
@@ -660,8 +662,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "store_slugs": {
-          "name": "store_slugs",
+        "store_ids": {
+          "name": "store_ids",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -777,14 +779,13 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "varchar(12)",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "item_id": {
           "name": "item_id",
-          "type": "uuid",
+          "type": "varchar(12)",
           "primaryKey": false,
           "notNull": true
         },
@@ -864,10 +865,9 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "varchar(12)",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "slug": {
           "name": "slug",
@@ -1033,10 +1033,9 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "varchar(12)",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "name": {
           "name": "name",

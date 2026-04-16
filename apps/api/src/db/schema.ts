@@ -1,9 +1,13 @@
 import {
-  pgTable, uuid, text, integer, boolean, timestamp,
+  pgTable, varchar, text, integer, boolean, timestamp,
   index, uniqueIndex, jsonb, pgEnum, customType,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
+
+const shortId = (column = 'id') =>
+  varchar(column, { length: 12 }).$defaultFn(() => nanoid(12));
 
 export const vector1024 = customType<{ data: number[]; driverData: string }>({
   dataType: () => 'vector(1024)',
@@ -24,13 +28,13 @@ export const planStrategy = pgEnum('plan_strategy',  ['cheapest-per-item', 'sing
 export const planLineKind = pgEnum('plan_line_kind', ['query', 'item']);
 
 export const users = pgTable('users', {
-  id:        uuid('id').primaryKey().defaultRandom(),
+  id:        shortId().primaryKey(),
   name:      text('name'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const stores = pgTable('stores', {
-  id:          uuid('id').primaryKey().defaultRandom(),
+  id:          shortId().primaryKey(),
   slug:        text('slug').notNull(),
   vendor:      vendorId('vendor').notNull(),
   vendorSlug:  text('vendor_slug').notNull(),
@@ -52,8 +56,8 @@ export const stores = pgTable('stores', {
 }));
 
 export const categories = pgTable('categories', {
-  id:         uuid('id').primaryKey().defaultRandom(),
-  storeId:    uuid('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  id:         shortId().primaryKey(),
+  storeId:    varchar('store_id', { length: 12 }).notNull().references(() => stores.id, { onDelete: 'cascade' }),
   slug:       text('slug').notNull(),
   vendorSlug: text('vendor_slug').notNull(),
   parentSlug: text('parent_slug'),
@@ -65,10 +69,10 @@ export const categories = pgTable('categories', {
 }));
 
 export const items = pgTable('items', {
-  id:           uuid('id').primaryKey().defaultRandom(),
+  id:           shortId().primaryKey(),
   slug:         text('slug').notNull(),
-  storeId:      uuid('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
-  categoryId:   uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
+  storeId:      varchar('store_id', { length: 12 }).notNull().references(() => stores.id, { onDelete: 'cascade' }),
+  categoryId:   varchar('category_id', { length: 12 }).references(() => categories.id, { onDelete: 'set null' }),
   vendor:       vendorId('vendor').notNull(),
   vendorItemId: text('vendor_item_id').notNull(),
   name:         text('name').notNull(),
@@ -96,7 +100,7 @@ export const items = pgTable('items', {
 }));
 
 export const itemEmbeddings = pgTable('item_embeddings', {
-  itemId:       uuid('item_id').primaryKey().references(() => items.id, { onDelete: 'cascade' }),
+  itemId:       varchar('item_id', { length: 12 }).primaryKey().references(() => items.id, { onDelete: 'cascade' }),
   embedding:    vector1024('embedding').notNull(),
   modelVersion: text('model_version').notNull(),
   embeddedAt:   timestamp('embedded_at', { withTimezone: true }).defaultNow().notNull(),
@@ -106,7 +110,7 @@ export const itemEmbeddings = pgTable('item_embeddings', {
 }));
 
 export const embeddingJobs = pgTable('embedding_jobs', {
-  itemId:     uuid('item_id').primaryKey().references(() => items.id, { onDelete: 'cascade' }),
+  itemId:     varchar('item_id', { length: 12 }).primaryKey().references(() => items.id, { onDelete: 'cascade' }),
   enqueuedAt: timestamp('enqueued_at', { withTimezone: true }).defaultNow().notNull(),
   attempts:   integer('attempts').notNull().default(0),
   lockedAt:   timestamp('locked_at', { withTimezone: true }),
@@ -116,8 +120,8 @@ export const embeddingJobs = pgTable('embedding_jobs', {
 }));
 
 export const priceObservations = pgTable('price_observations', {
-  id:         uuid('id').primaryKey().defaultRandom(),
-  itemId:     uuid('item_id').notNull().references(() => items.id, { onDelete: 'cascade' }),
+  id:         shortId().primaryKey(),
+  itemId:     varchar('item_id', { length: 12 }).notNull().references(() => items.id, { onDelete: 'cascade' }),
   priceMinor: integer('price_minor').notNull(),
   currency:   text('currency').notNull(),
   available:  boolean('available').notNull(),
@@ -127,14 +131,14 @@ export const priceObservations = pgTable('price_observations', {
 }));
 
 export const plans = pgTable('plans', {
-  id:             uuid('id').primaryKey().defaultRandom(),
+  id:             shortId().primaryKey(),
   slug:           text('slug').notNull(),
-  userId:         uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId:         varchar('user_id', { length: 12 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
   name:           text('name').notNull(),
   type:           planType('type').notNull(),
   strategy:       planStrategy('strategy').notNull(),
   vendor:         vendorId('vendor'),
-  storeSlugs:     jsonb('store_slugs').$type<string[]>(),
+  storeIds:       jsonb('store_ids').$type<string[]>(),
   includeOffline: boolean('include_offline').notNull().default(false),
   createdAt:      timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt:      timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -146,13 +150,13 @@ export const plans = pgTable('plans', {
 }));
 
 export const planLines = pgTable('plan_lines', {
-  id:        uuid('id').primaryKey().defaultRandom(),
-  planId:    uuid('plan_id').notNull().references(() => plans.id, { onDelete: 'cascade' }),
+  id:        shortId().primaryKey(),
+  planId:    varchar('plan_id', { length: 12 }).notNull().references(() => plans.id, { onDelete: 'cascade' }),
   position:  integer('position').notNull(),
   kind:      planLineKind('kind').notNull(),
   quantity:  integer('quantity').notNull().default(1),
   query:     text('query'),
-  itemId:    uuid('item_id').references(() => items.id, { onDelete: 'set null' }),
+  itemId:    varchar('item_id', { length: 12 }).references(() => items.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => ({
   planPosIx: index('plan_lines_plan_pos_ix').on(t.planId, t.position),

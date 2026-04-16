@@ -4,8 +4,8 @@ CREATE TYPE "public"."plan_type" AS ENUM('mixed', 'item-based', 'query-based');-
 CREATE TYPE "public"."product_line" AS ENUM('restaurant', 'store', 'grocery', 'pharmacy', 'other');--> statement-breakpoint
 CREATE TYPE "public"."vendor_id" AS ENUM('wolt', 'glovo', 'bolt-food', 'europroduct', 'goodwill');--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "categories" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"store_id" uuid NOT NULL,
+	"id" varchar(12) PRIMARY KEY NOT NULL,
+	"store_id" varchar(12) NOT NULL,
 	"slug" text NOT NULL,
 	"vendor_slug" text NOT NULL,
 	"parent_slug" text,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS "categories" (
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "embedding_jobs" (
-	"item_id" uuid PRIMARY KEY NOT NULL,
+	"item_id" varchar(12) PRIMARY KEY NOT NULL,
 	"enqueued_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"attempts" integer DEFAULT 0 NOT NULL,
 	"locked_at" timestamp with time zone,
@@ -22,17 +22,17 @@ CREATE TABLE IF NOT EXISTS "embedding_jobs" (
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "item_embeddings" (
-	"item_id" uuid PRIMARY KEY NOT NULL,
+	"item_id" varchar(12) PRIMARY KEY NOT NULL,
 	"embedding" vector(1024) NOT NULL,
 	"model_version" text NOT NULL,
 	"embedded_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "items" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" varchar(12) PRIMARY KEY NOT NULL,
 	"slug" text NOT NULL,
-	"store_id" uuid NOT NULL,
-	"category_id" uuid,
+	"store_id" varchar(12) NOT NULL,
+	"category_id" varchar(12),
 	"vendor" "vendor_id" NOT NULL,
 	"vendor_item_id" text NOT NULL,
 	"name" text NOT NULL,
@@ -43,38 +43,39 @@ CREATE TABLE IF NOT EXISTS "items" (
 	"currency" text NOT NULL,
 	"available" boolean DEFAULT true NOT NULL,
 	"tags" jsonb DEFAULT '[]'::jsonb,
+	"raw_content" jsonb,
 	"search_text" text GENERATED ALWAYS AS (name || ' ' || coalesce(description, '')) STORED,
 	"last_seen_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "plan_lines" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"plan_id" uuid NOT NULL,
+	"id" varchar(12) PRIMARY KEY NOT NULL,
+	"plan_id" varchar(12) NOT NULL,
 	"position" integer NOT NULL,
 	"kind" "plan_line_kind" NOT NULL,
 	"quantity" integer DEFAULT 1 NOT NULL,
 	"query" text,
-	"item_id" uuid,
+	"item_id" varchar(12),
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "plans" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" varchar(12) PRIMARY KEY NOT NULL,
 	"slug" text NOT NULL,
-	"user_id" uuid NOT NULL,
+	"user_id" varchar(12) NOT NULL,
 	"name" text NOT NULL,
 	"type" "plan_type" NOT NULL,
 	"strategy" "plan_strategy" NOT NULL,
 	"vendor" "vendor_id",
-	"store_slugs" jsonb,
+	"store_ids" jsonb,
 	"include_offline" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "price_observations" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"item_id" uuid NOT NULL,
+	"id" varchar(12) PRIMARY KEY NOT NULL,
+	"item_id" varchar(12) NOT NULL,
 	"price_minor" integer NOT NULL,
 	"currency" text NOT NULL,
 	"available" boolean NOT NULL,
@@ -82,7 +83,7 @@ CREATE TABLE IF NOT EXISTS "price_observations" (
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "stores" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" varchar(12) PRIMARY KEY NOT NULL,
 	"slug" text NOT NULL,
 	"vendor" "vendor_id" NOT NULL,
 	"vendor_slug" text NOT NULL,
@@ -99,7 +100,7 @@ CREATE TABLE IF NOT EXISTS "stores" (
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "users" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" varchar(12) PRIMARY KEY NOT NULL,
 	"name" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -177,8 +178,4 @@ CREATE INDEX IF NOT EXISTS "price_observations_item_time_ix" ON "price_observati
 CREATE UNIQUE INDEX IF NOT EXISTS "stores_slug_uq" ON "stores" USING btree ("slug");--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "stores_vendor_slug_uq" ON "stores" USING btree ("vendor","vendor_slug");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "stores_name_trgm" ON "stores" USING gin ("name" gin_trgm_ops);--> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "stores_product_line_ix" ON "stores" USING btree ("product_line");--> statement-breakpoint
-ALTER TABLE "plan_lines" ADD CONSTRAINT "plan_lines_kind_check" CHECK (
-  (kind = 'query' AND query IS NOT NULL) OR
-  (kind = 'item'  AND item_id IS NOT NULL)
-);
+CREATE INDEX IF NOT EXISTS "stores_product_line_ix" ON "stores" USING btree ("product_line");
