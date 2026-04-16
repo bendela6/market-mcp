@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { Button, Input } from '@market/ui';
 import { useAddPlanLine } from '../../hooks/use-plan-mutations.js';
 
-export function PlanLineAddQuery({ planIdOrSlug }: { planIdOrSlug: string }) {
+export function PlanLineAddQuery({ planId }: { planId: string }) {
   const [q, setQ] = useState('');
   const [qty, setQty] = useState(1);
-  const add = useAddPlanLine(planIdOrSlug);
+  const add = useAddPlanLine(planId);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

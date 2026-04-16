@@ -36,7 +36,7 @@ export function ProductsListPage() {
     mode: search.mode,
     sort: parseSort<ItemSortField>(currentSort),
     vendor: search.vendor,
-    storeIdOrSlug: search.storeIdOrSlug,
+    storeId: search.storeId,
     minPriceMinor: search.minPriceMinor,
     maxPriceMinor: search.maxPriceMinor,
     available: search.available,

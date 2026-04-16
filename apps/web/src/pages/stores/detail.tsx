@@ -5,9 +5,9 @@ import { useRefreshStoreAssortment } from '../../hooks/use-store-mutations.js';
 import { StoreDetail } from '../../features/stores/store-detail.js';
 
 export function StoreDetailPage() {
-  const { idOrSlug } = useParams({ from: '/stores/$idOrSlug' });
-  const { data, isLoading, error } = useStore(idOrSlug);
-  const refresh = useRefreshStoreAssortment(idOrSlug);
+  const { id } = useParams({ from: '/stores/$id' });
+  const { data, isLoading, error } = useStore(id);
+  const refresh = useRefreshStoreAssortment(id);
 
   if (isLoading) {
     return (

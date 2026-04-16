@@ -38,10 +38,10 @@ export const api = {
   // stores
   queryStores: (body: StoreQueryBody) =>
     raw<StoreQueryResponse>(ROUTES.stores.query, { method: 'POST', body: JSON.stringify(body) }),
-  getStore: (idOrSlug: string) =>
-    raw<GetStoreResponse>(ROUTES.stores.get(idOrSlug), { method: 'GET' }),
-  refreshStoreAssortment: (idOrSlug: string) =>
-    raw<RefreshAssortmentResponse>(ROUTES.stores.refreshAssortment(idOrSlug), {
+  getStore: (id: string) =>
+    raw<GetStoreResponse>(ROUTES.stores.get(id), { method: 'GET' }),
+  refreshStoreAssortment: (id: string) =>
+    raw<RefreshAssortmentResponse>(ROUTES.stores.refreshAssortment(id), {
       method: 'POST',
       body: JSON.stringify({}),
     }),
@@ -49,8 +49,8 @@ export const api = {
   // catalog
   queryItems: (body: ItemQueryBody) =>
     raw<ItemQueryResponse>(ROUTES.catalog.itemQuery, { method: 'POST', body: JSON.stringify(body) }),
-  getItem: (idOrSlug: string) =>
-    raw<GetItemResponse>(ROUTES.catalog.itemGet(idOrSlug), { method: 'GET' }),
+  getItem: (id: string) =>
+    raw<GetItemResponse>(ROUTES.catalog.itemGet(id), { method: 'GET' }),
   stats: () =>
     raw<CatalogStatsResponse>(ROUTES.catalog.stats, { method: 'GET' }),
 
@@ -59,18 +59,18 @@ export const api = {
     raw<PlanQueryResponse>(ROUTES.plans.query, { method: 'POST', body: JSON.stringify(body), headers: userHeaders() }),
   createPlan: (body: CreatePlanBody) =>
     raw<Plan>(ROUTES.plans.create, { method: 'POST', body: JSON.stringify(body), headers: userHeaders() }),
-  getPlan: (idOrSlug: string) =>
-    raw<PlanDetail>(ROUTES.plans.get(idOrSlug), { method: 'GET', headers: userHeaders() }),
-  updatePlan: (idOrSlug: string, body: UpdatePlanBody) =>
-    raw<Plan>(ROUTES.plans.update(idOrSlug), { method: 'PATCH', body: JSON.stringify(body), headers: userHeaders() }),
-  deletePlan: (idOrSlug: string) =>
-    raw<void>(ROUTES.plans.delete(idOrSlug), { method: 'DELETE', headers: userHeaders() }),
-  addPlanLine: (idOrSlug: string, body: AddPlanLineBody) =>
-    raw(ROUTES.plans.lines.add(idOrSlug), { method: 'POST', body: JSON.stringify(body), headers: userHeaders() }),
-  updatePlanLine: (idOrSlug: string, lineId: string, body: UpdatePlanLineBody) =>
-    raw(ROUTES.plans.lines.update(idOrSlug, lineId), { method: 'PATCH', body: JSON.stringify(body), headers: userHeaders() }),
-  removePlanLine: (idOrSlug: string, lineId: string) =>
-    raw<void>(ROUTES.plans.lines.delete(idOrSlug, lineId), { method: 'DELETE', headers: userHeaders() }),
-  computePlan: (idOrSlug: string) =>
-    raw<ComputePlanResponse>(ROUTES.plans.compute(idOrSlug), { method: 'POST', body: JSON.stringify({}), headers: userHeaders() }),
+  getPlan: (id: string) =>
+    raw<PlanDetail>(ROUTES.plans.get(id), { method: 'GET', headers: userHeaders() }),
+  updatePlan: (id: string, body: UpdatePlanBody) =>
+    raw<Plan>(ROUTES.plans.update(id), { method: 'PATCH', body: JSON.stringify(body), headers: userHeaders() }),
+  deletePlan: (id: string) =>
+    raw<void>(ROUTES.plans.delete(id), { method: 'DELETE', headers: userHeaders() }),
+  addPlanLine: (id: string, body: AddPlanLineBody) =>
+    raw(ROUTES.plans.lines.add(id), { method: 'POST', body: JSON.stringify(body), headers: userHeaders() }),
+  updatePlanLine: (id: string, lineId: string, body: UpdatePlanLineBody) =>
+    raw(ROUTES.plans.lines.update(id, lineId), { method: 'PATCH', body: JSON.stringify(body), headers: userHeaders() }),
+  removePlanLine: (id: string, lineId: string) =>
+    raw<void>(ROUTES.plans.lines.delete(id, lineId), { method: 'DELETE', headers: userHeaders() }),
+  computePlan: (id: string) =>
+    raw<ComputePlanResponse>(ROUTES.plans.compute(id), { method: 'POST', body: JSON.stringify({}), headers: userHeaders() }),
 };

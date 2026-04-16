@@ -59,7 +59,7 @@ export function WoltProductCard({ item, data }: Props) {
 
   return (
     <a
-      href={`/products/${item.slug}`}
+      href={`/products/${item.id}`}
       className="group block overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm transition hover:shadow-md"
     >
       <div className="relative aspect-video overflow-hidden bg-muted">

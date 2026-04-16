@@ -13,13 +13,12 @@ export function useCreatePlan() {
   });
 }
 
-export function useUpdatePlan(idOrSlug: string) {
+export function useUpdatePlan(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: UpdatePlanBody) => api.updatePlan(idOrSlug, body),
-    onSuccess: (plan: Plan) => {
-      void qc.invalidateQueries({ queryKey: ['plans', 'get', idOrSlug] });
-      void qc.invalidateQueries({ queryKey: ['plans', 'get', plan.slug] });
+    mutationFn: (body: UpdatePlanBody) => api.updatePlan(id, body),
+    onSuccess: (_plan: Plan) => {
+      void qc.invalidateQueries({ queryKey: ['plans', 'get', id] });
       void qc.invalidateQueries({ queryKey: ['plans', 'query'] });
     },
   });
@@ -28,38 +27,38 @@ export function useUpdatePlan(idOrSlug: string) {
 export function useDeletePlan() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (idOrSlug: string) => api.deletePlan(idOrSlug),
+    mutationFn: (id: string) => api.deletePlan(id),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['plans', 'query'] }); },
   });
 }
 
-export function useAddPlanLine(idOrSlug: string) {
+export function useAddPlanLine(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: AddPlanLineBody) => api.addPlanLine(idOrSlug, body),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['plans', 'get', idOrSlug] }); },
+    mutationFn: (body: AddPlanLineBody) => api.addPlanLine(id, body),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['plans', 'get', id] }); },
   });
 }
 
-export function useUpdatePlanLine(idOrSlug: string) {
+export function useUpdatePlanLine(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ lineId, body }: { lineId: string; body: UpdatePlanLineBody }) =>
-      api.updatePlanLine(idOrSlug, lineId, body),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['plans', 'get', idOrSlug] }); },
+      api.updatePlanLine(id, lineId, body),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['plans', 'get', id] }); },
   });
 }
 
-export function useRemovePlanLine(idOrSlug: string) {
+export function useRemovePlanLine(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (lineId: string) => api.removePlanLine(idOrSlug, lineId),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['plans', 'get', idOrSlug] }); },
+    mutationFn: (lineId: string) => api.removePlanLine(id, lineId),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['plans', 'get', id] }); },
   });
 }
 
-export function useComputePlan(idOrSlug: string) {
+export function useComputePlan(id: string) {
   return useMutation<ComputePlanResponse>({
-    mutationFn: () => api.computePlan(idOrSlug),
+    mutationFn: () => api.computePlan(id),
   });
 }

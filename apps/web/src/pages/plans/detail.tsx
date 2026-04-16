@@ -8,9 +8,9 @@ import { PlanLines } from '../../features/plans/plan-lines.js';
 import { PlanComputePanel } from '../../features/plans/plan-compute-panel.js';
 
 export function PlanDetailPage() {
-  const { idOrSlug } = useParams({ from: '/plans/$idOrSlug' });
-  const { data, isLoading, error } = usePlan(idOrSlug);
-  const compute = useComputePlan(idOrSlug);
+  const { id } = useParams({ from: '/plans/$id' });
+  const { data, isLoading, error } = usePlan(id);
+  const compute = useComputePlan(id);
   const [computed, setComputed] = useState<ComputePlanResponse | undefined>();
 
   if (isLoading) return <Skeleton className="h-40 w-full" />;
@@ -40,7 +40,7 @@ export function PlanDetailPage() {
         </CardContent>
       </Card>
 
-      <PlanLines planIdOrSlug={plan.slug} planType={plan.type} lines={lines} />
+      <PlanLines planId={plan.id} planType={plan.type} lines={lines} />
       <PlanComputePanel result={computed} />
     </div>
   );

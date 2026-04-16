@@ -23,7 +23,7 @@ export function PlanCreateDialog() {
     const plan = await create.mutateAsync(body);
     setOpen(false);
     setName('');
-    void nav({ to: '/plans/$idOrSlug', params: { idOrSlug: plan.slug } });
+    void nav({ to: '/plans/$id', params: { id: plan.id } });
   };
 
   return (

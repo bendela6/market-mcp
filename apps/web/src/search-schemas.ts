@@ -22,7 +22,7 @@ const ItemListSchema = v.object({
   sort: v.optional(v.string()),
   mode: v.optional(SearchMode),
   vendor: v.optional(VendorId),
-  storeIdOrSlug: v.optional(v.string()),
+  storeId: v.optional(v.pipe(v.string(), v.regex(/^[A-Za-z0-9_-]{12}$/))),
   minPriceMinor: v.optional(v.number()),
   maxPriceMinor: v.optional(v.number()),
   available: v.optional(v.boolean()),

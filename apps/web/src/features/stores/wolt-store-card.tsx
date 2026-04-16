@@ -104,7 +104,7 @@ export function WoltStoreCard({ store, data }: Props) {
 
   return (
     <a
-      href={`/stores/${store.slug}`}
+      href={`/stores/${store.id}`}
       className="group block overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm transition hover:shadow-md"
     >
       <div className="relative aspect-square overflow-hidden bg-muted">
