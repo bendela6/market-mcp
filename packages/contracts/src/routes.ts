@@ -74,38 +74,3 @@ export function buildPath<P extends string>(
   );
 }
 
-/* ----------------------------------------------------------------------------
- * Legacy `ROUTES` — DEPRECATED.
- *
- * Kept only so consumers compile during the migration. Removed in Task 5
- * after every consumer has switched to `API_PATHS` + `buildPath`.
- * -------------------------------------------------------------------------- */
-
-export const ROUTES = {
-  stores: {
-    query:             API_PATHS.stores.query,
-    map:               API_PATHS.stores.map,
-    get:               (id: string) => buildPath(API_PATHS.stores.get, { id }),
-    refreshAssortment: (id: string) => buildPath(API_PATHS.stores.refreshAssortment, { id }),
-  },
-  catalog: {
-    itemQuery: API_PATHS.catalog.itemQuery,
-    itemGet:   (id: string) => buildPath(API_PATHS.catalog.itemGet, { id }),
-    stats:     API_PATHS.catalog.stats,
-  },
-  plans: {
-    query:   API_PATHS.plans.query,
-    create:  API_PATHS.plans.create,
-    get:     (id: string) => buildPath(API_PATHS.plans.get, { id }),
-    update:  (id: string) => buildPath(API_PATHS.plans.update, { id }),
-    delete:  (id: string) => buildPath(API_PATHS.plans.delete, { id }),
-    lines: {
-      add:    (id: string) => buildPath(API_PATHS.plans.addLine, { id }),
-      update: (id: string, lineId: string) => buildPath(API_PATHS.plans.updateLine, { id, lineId }),
-      delete: (id: string, lineId: string) => buildPath(API_PATHS.plans.deleteLine, { id, lineId }),
-    },
-    compute: (id: string) => buildPath(API_PATHS.plans.compute, { id }),
-  },
-  users: API_PATHS.users,
-  admin: API_PATHS.admin,
-} as const;
