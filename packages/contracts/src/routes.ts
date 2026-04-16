@@ -38,6 +38,7 @@ export const API_PATHS = {
 export const WEB_PATHS = {
   home:          '/',
   stores:        '/stores',
+  storesMap:     '/stores/map',
   storeDetail:   '/stores/$id',
   products:      '/products',
   productDetail: '/products/$id',

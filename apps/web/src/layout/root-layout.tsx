@@ -1,13 +1,14 @@
 import { Link, Outlet } from '@tanstack/react-router';
 import { Toaster } from '@market/ui';
+import { WEB_PATHS } from '@market/contracts';
 
 const NAV = [
-  { to: '/', label: 'Home' },
-  { to: '/stores', label: 'Stores' },
-  { to: '/stores/map', label: 'Map' },
-  { to: '/products', label: 'Products' },
-  { to: '/vendors', label: 'Vendors' },
-  { to: '/plans', label: 'Plans' },
+  { to: WEB_PATHS.home,      label: 'Home' },
+  { to: WEB_PATHS.stores,    label: 'Stores' },
+  { to: WEB_PATHS.storesMap, label: 'Map' },
+  { to: WEB_PATHS.products,  label: 'Products' },
+  { to: WEB_PATHS.vendors,   label: 'Vendors' },
+  { to: WEB_PATHS.plans,     label: 'Plans' },
 ];
 
 export function RootLayout() {

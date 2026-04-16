@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { createRouter, createRootRoute, createRoute } from '@tanstack/react-router';
+import { WEB_PATHS } from '@market/contracts';
 import { RootLayout }        from './layout/root-layout.js';
 import { HomePage }          from './pages/home.js';
 import { StoresListPage }    from './pages/stores/list.js';
@@ -20,12 +21,12 @@ const StoresMapPage = lazy(() => import('./pages/stores/map.js'));
 export const rootRoute = createRootRoute({ component: RootLayout });
 
 const routes = [
-  createRoute({ getParentRoute: () => rootRoute, path: '/', component: HomePage }),
-  createRoute({ getParentRoute: () => rootRoute, path: '/stores',
+  createRoute({ getParentRoute: () => rootRoute, path: WEB_PATHS.home, component: HomePage }),
+  createRoute({ getParentRoute: () => rootRoute, path: WEB_PATHS.stores,
                 component: StoresListPage, validateSearch: storeListSearchSchema }),
   createRoute({
     getParentRoute: () => rootRoute,
-    path: '/stores/map',
+    path: WEB_PATHS.storesMap,
     component: () => (
       <Suspense fallback={<MapPageSkeleton />}>
         <StoresMapPage />
@@ -33,16 +34,16 @@ const routes = [
     ),
     validateSearch: storeMapSearchSchema,
   }),
-  createRoute({ getParentRoute: () => rootRoute, path: '/stores/$id',
+  createRoute({ getParentRoute: () => rootRoute, path: WEB_PATHS.storeDetail,
                 component: StoreDetailPage }),
-  createRoute({ getParentRoute: () => rootRoute, path: '/products',
+  createRoute({ getParentRoute: () => rootRoute, path: WEB_PATHS.products,
                 component: ProductsListPage, validateSearch: itemListSearchSchema }),
-  createRoute({ getParentRoute: () => rootRoute, path: '/products/$id',
+  createRoute({ getParentRoute: () => rootRoute, path: WEB_PATHS.productDetail,
                 component: ProductDetailPage }),
-  createRoute({ getParentRoute: () => rootRoute, path: '/vendors', component: VendorsPage }),
-  createRoute({ getParentRoute: () => rootRoute, path: '/plans',
+  createRoute({ getParentRoute: () => rootRoute, path: WEB_PATHS.vendors, component: VendorsPage }),
+  createRoute({ getParentRoute: () => rootRoute, path: WEB_PATHS.plans,
                 component: PlansListPage, validateSearch: planListSearchSchema }),
-  createRoute({ getParentRoute: () => rootRoute, path: '/plans/$id',
+  createRoute({ getParentRoute: () => rootRoute, path: WEB_PATHS.planDetail,
                 component: PlanDetailPage }),
 ];
 
