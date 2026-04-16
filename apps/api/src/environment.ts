@@ -43,6 +43,10 @@ const Schema = v.pipe(
     GEMINI_API_KEY: v.optional(v.string()),
     WOLT_LAT: FloatFromString,
     WOLT_LON: FloatFromString,
+    ENCRYPTION_KEY_HEX: v.pipe(
+      v.string(),
+      v.regex(/^[0-9a-fA-F]{64}$/, 'ENCRYPTION_KEY_HEX must be 64 hex chars (32 bytes)'),
+    ),
   }),
   v.forward(
     v.partialCheck(
