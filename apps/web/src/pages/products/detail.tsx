@@ -11,7 +11,7 @@ export function ProductDetailPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="mx-auto aspect-video w-full max-w-[910px]" />
-        <div className="mx-auto max-w-2xl space-y-3">
+        <div className="mx-auto w-full max-w-[910px] space-y-3">
           <Skeleton className="h-8 w-2/3" />
           <Skeleton className="h-4 w-1/3" />
           <Skeleton className="h-16 w-full" />

@@ -144,7 +144,7 @@ export function WoltProductDetail({ item, data }: Props) {
         )}
       </div>
 
-      <div className="mx-auto max-w-2xl space-y-4">
+      <div className="mx-auto w-full max-w-[910px] space-y-4">
         <div className="space-y-1">
           <a
             href={`/stores/${item.storeSlug}`}
