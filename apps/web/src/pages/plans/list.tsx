@@ -1,5 +1,6 @@
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { useNavigate, useSearch, Link } from '@tanstack/react-router';
 import { Button, Card, CardContent, CardHeader, CardTitle, Skeleton } from '@market/ui';
+import { WEB_PATHS } from '@market/contracts';
 import { usePlansQuery } from '../../hooks/use-plans-query.js';
 import { useDeletePlan } from '../../hooks/use-plan-mutations.js';
 import { parseSort, type PlanListSearch } from '../../search-schemas.js';
@@ -36,7 +37,7 @@ export function PlansListPage() {
               <Card key={p.id}>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>
-                    <a className="hover:underline" href={`/plans/${p.id}`}>{p.name}</a>
+                    <Link className="hover:underline" to={WEB_PATHS.planDetail} params={{ id: p.id }}>{p.name}</Link>
                   </CardTitle>
                   <Button variant="ghost" size="sm" onClick={() => void del.mutateAsync(p.id)}>Delete</Button>
                 </CardHeader>

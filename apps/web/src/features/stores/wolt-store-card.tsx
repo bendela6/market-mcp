@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import type { Store, WoltVenueData, WoltImage } from '@market/contracts';
+import { WEB_PATHS } from '@market/contracts';
 import { Badge, Card } from '@market/ui';
 
 function imageUrl(img: WoltImage | string | undefined): string | undefined {
@@ -103,8 +105,9 @@ export function WoltStoreCard({ store, data }: Props) {
   const promos = data.promotions ?? [];
 
   return (
-    <a
-      href={`/stores/${store.id}`}
+    <Link
+      to={WEB_PATHS.storeDetail}
+      params={{ id: store.id }}
       className="group block overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm transition hover:shadow-md"
     >
       <div className="relative aspect-square overflow-hidden bg-muted">
@@ -179,7 +182,7 @@ export function WoltStoreCard({ store, data }: Props) {
           </div>
         )}
       </div>
-    </a>
+    </Link>
   );
 }
 

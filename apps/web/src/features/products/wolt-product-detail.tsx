@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import type { Item, WoltProductData, WoltProductImage, WoltProductTag } from '@market/contracts';
+import { WEB_PATHS } from '@market/contracts';
 import { Badge } from '@market/ui';
 
 function imageUrl(img: WoltProductImage | string | undefined): string | undefined {
@@ -146,12 +148,13 @@ export function WoltProductDetail({ item, data }: Props) {
 
       <div className="mx-auto w-full max-w-[910px] space-y-4">
         <div className="space-y-1">
-          <a
-            href={`/stores/${item.storeSlug}`}
+          <Link
+            to={WEB_PATHS.storeDetail}
+            params={{ id: item.storeId }}
             className="text-xs text-muted-foreground hover:underline"
           >
             {item.storeName}
-          </a>
+          </Link>
           <h1 className="text-2xl font-bold leading-tight">{item.name}</h1>
           {data.unit_info && (
             <p className="text-sm text-muted-foreground">{data.unit_info}</p>

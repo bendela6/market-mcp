@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import type { Item, WoltProductData, WoltProductImage, WoltProductTag } from '@market/contracts';
+import { WEB_PATHS } from '@market/contracts';
 import { Badge, Card } from '@market/ui';
 
 function imageUrl(img: WoltProductImage | string | undefined): string | undefined {
@@ -58,8 +60,9 @@ export function WoltProductCard({ item, data }: Props) {
   const tags: WoltProductTag[] = data.tags ?? [];
 
   return (
-    <a
-      href={`/products/${item.id}`}
+    <Link
+      to={WEB_PATHS.productDetail}
+      params={{ id: item.id }}
       className="group block overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm transition hover:shadow-md"
     >
       <div className="relative aspect-video overflow-hidden bg-muted">
@@ -118,7 +121,7 @@ export function WoltProductCard({ item, data }: Props) {
           </div>
         )}
       </div>
-    </a>
+    </Link>
   );
 }
 
