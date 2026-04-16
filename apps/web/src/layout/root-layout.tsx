@@ -4,6 +4,7 @@ import { Toaster } from '@market/ui';
 const NAV = [
   { to: '/', label: 'Home' },
   { to: '/stores', label: 'Stores' },
+  { to: '/stores/map', label: 'Map' },
   { to: '/products', label: 'Products' },
   { to: '/vendors', label: 'Vendors' },
   { to: '/plans', label: 'Plans' },

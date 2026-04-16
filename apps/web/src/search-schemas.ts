@@ -36,9 +36,19 @@ const PlanListSchema = v.object({
   type: v.optional(PlanType),
 });
 
+const StoreMapSchema = v.object({
+  q:           v.optional(v.string()),
+  vendor:      v.optional(VendorId),
+  productLine: v.optional(ProductLine),
+  online:      v.optional(v.boolean()),
+  selected:    v.optional(v.string()),
+  view:        v.optional(v.picklist(['map', 'list'] as const)),
+});
+
 export type StoreListSearch = v.InferOutput<typeof StoreListSchema>;
 export type ItemListSearch = v.InferOutput<typeof ItemListSchema>;
 export type PlanListSearch = v.InferOutput<typeof PlanListSchema>;
+export type StoreMapSearch = v.InferOutput<typeof StoreMapSchema>;
 
 export const storeListSearchSchema = (input: Record<string, unknown>): StoreListSearch =>
   v.parse(StoreListSchema, input);
@@ -48,6 +58,9 @@ export const itemListSearchSchema = (input: Record<string, unknown>): ItemListSe
 
 export const planListSearchSchema = (input: Record<string, unknown>): PlanListSearch =>
   v.parse(PlanListSchema, input);
+
+export const storeMapSearchSchema = (input: Record<string, unknown>): StoreMapSearch =>
+  v.parse(StoreMapSchema, input);
 
 export function parseSort<F extends string = string>(
   s: string | undefined,

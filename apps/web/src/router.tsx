@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { createRouter, createRootRoute, createRoute } from '@tanstack/react-router';
 import { RootLayout }        from './layout/root-layout.js';
 import { HomePage }          from './pages/home.js';
@@ -8,9 +9,13 @@ import { ProductDetailPage } from './pages/products/detail.js';
 import { VendorsPage }       from './pages/vendors.js';
 import { PlansListPage }     from './pages/plans/list.js';
 import { PlanDetailPage }    from './pages/plans/detail.js';
+import { MapPageSkeleton }   from './features/stores/map/map-page-skeleton.js';
 import {
   storeListSearchSchema, itemListSearchSchema, planListSearchSchema,
+  storeMapSearchSchema,
 } from './search-schemas.js';
+
+const StoresMapPage = lazy(() => import('./pages/stores/map.js'));
 
 export const rootRoute = createRootRoute({ component: RootLayout });
 
@@ -18,6 +23,16 @@ const routes = [
   createRoute({ getParentRoute: () => rootRoute, path: '/', component: HomePage }),
   createRoute({ getParentRoute: () => rootRoute, path: '/stores',
                 component: StoresListPage, validateSearch: storeListSearchSchema }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/stores/map',
+    component: () => (
+      <Suspense fallback={<MapPageSkeleton />}>
+        <StoresMapPage />
+      </Suspense>
+    ),
+    validateSearch: storeMapSearchSchema,
+  }),
   createRoute({ getParentRoute: () => rootRoute, path: '/stores/$id',
                 component: StoreDetailPage }),
   createRoute({ getParentRoute: () => rootRoute, path: '/products',

@@ -2,6 +2,7 @@ import type {
   AddPlanLineBody, CatalogStatsResponse, ComputePlanResponse, CreatePlanBody,
   CreateUserBody, GetItemResponse, GetStoreResponse, ItemQueryBody, ItemQueryResponse,
   Plan, PlanDetail, PlanQueryBody, PlanQueryResponse, RefreshAssortmentResponse,
+  StoreMapQueryBody, StoreMapQueryResponse,
   StoreQueryBody, StoreQueryResponse, UpdatePlanBody, UpdatePlanLineBody, User,
 } from '@market/contracts';
 import { ROUTES } from '@market/contracts';
@@ -45,6 +46,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({}),
     }),
+  queryStoresMap: (body: StoreMapQueryBody) =>
+    raw<StoreMapQueryResponse>(ROUTES.stores.map, { method: 'POST', body: JSON.stringify(body) }),
 
   // catalog
   queryItems: (body: ItemQueryBody) =>
