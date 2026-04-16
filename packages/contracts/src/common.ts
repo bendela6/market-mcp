@@ -50,6 +50,16 @@ export function envelope<T extends v.BaseSchema<unknown, unknown, v.BaseIssue<un
   });
 }
 
-export const IdOrSlugParamsSchema = v.object({
-  idOrSlug: v.pipe(v.string(), v.minLength(1)),
+export const ShortIdSchema = v.pipe(
+  v.string(),
+  v.regex(/^[A-Za-z0-9_-]{12}$/, 'must be a 12-char short id'),
+);
+
+export const IdParamsSchema = v.object({
+  id: ShortIdSchema,
+});
+
+export const LineIdParamsSchema = v.object({
+  id: ShortIdSchema,
+  lineId: ShortIdSchema,
 });

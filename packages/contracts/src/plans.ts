@@ -3,6 +3,7 @@ import {
   PriceMinorSchema,
   VendorIdSchema,
   PaginationBaseSchema,
+  ShortIdSchema,
   SortItemSchema,
   envelope,
 } from './common.js';
@@ -81,7 +82,7 @@ export const PlanSchema = v.object({
   type:           PlanTypeSchema,
   strategy:       PlanStrategySchema,
   vendor:         v.optional(VendorIdSchema),
-  storeSlugs:     v.optional(v.array(v.string())),
+  storeIds:       v.optional(v.array(ShortIdSchema)),
   includeOffline: v.boolean(),
   createdAt:      v.string(),
   updatedAt:      v.string(),
@@ -107,7 +108,7 @@ export const CreatePlanBodySchema = v.object({
   type:           PlanTypeSchema,
   strategy:       PlanStrategySchema,
   vendor:         v.optional(VendorIdSchema),
-  storeSlugs:     v.optional(v.array(v.string())),
+  storeIds:       v.optional(v.array(ShortIdSchema)),
   includeOffline: v.optional(v.boolean(), false),
 });
 
@@ -115,7 +116,7 @@ export const UpdatePlanBodySchema = v.partial(v.object({
   name:           v.pipe(v.string(), v.minLength(1)),
   strategy:       PlanStrategySchema,
   vendor:         v.optional(VendorIdSchema),
-  storeSlugs:     v.optional(v.array(v.string())),
+  storeIds:       v.optional(v.array(ShortIdSchema)),
   includeOffline: v.boolean(),
 }));
 
@@ -126,9 +127,9 @@ export const AddPlanLineBodySchema = v.variant('kind', [
     quantity: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
   }),
   v.object({
-    kind:         v.literal('item'),
-    itemIdOrSlug: v.string(),
-    quantity:     v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
+    kind:     v.literal('item'),
+    itemId:   ShortIdSchema,
+    quantity: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
   }),
 ]);
 
