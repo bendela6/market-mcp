@@ -3,6 +3,7 @@ import {
   PriceMinorSchema,
   VendorIdSchema,
   PaginationBaseSchema,
+  ShortIdSchema,
   SortItemSchema,
   envelope,
 } from './common.js';
@@ -31,14 +32,14 @@ export const ItemSortFields = ['name', 'priceMinor', 'relevance'] as const;
 
 export const ItemQueryBodySchema = v.object({
   ...PaginationBaseSchema.entries,
-  sort:             v.optional(v.array(SortItemSchema(ItemSortFields))),
-  mode:             v.optional(SearchModeSchema),
-  vendor:           v.optional(VendorIdSchema),
-  storeIdOrSlug:    v.optional(v.string()),
-  categoryIdOrSlug: v.optional(v.string()),
-  minPriceMinor:    v.optional(PriceMinorSchema),
-  maxPriceMinor:    v.optional(PriceMinorSchema),
-  available:        v.optional(v.boolean()),
+  sort:          v.optional(v.array(SortItemSchema(ItemSortFields))),
+  mode:          v.optional(SearchModeSchema),
+  vendor:        v.optional(VendorIdSchema),
+  storeId:       v.optional(ShortIdSchema),
+  categoryId:    v.optional(ShortIdSchema),
+  minPriceMinor: v.optional(PriceMinorSchema),
+  maxPriceMinor: v.optional(PriceMinorSchema),
+  available:     v.optional(v.boolean()),
 });
 
 export const ItemQueryResponseSchema = envelope(ItemSchema);

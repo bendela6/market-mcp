@@ -5,19 +5,19 @@ import { PlanLineAddItem } from './plan-line-add-item.js';
 import { useRemovePlanLine } from '../../hooks/use-plan-mutations.js';
 
 interface Props {
-  planIdOrSlug: string;
+  planId: string;
   planType: PlanType;
   lines: PlanLine[];
 }
 
-export function PlanLines({ planIdOrSlug, planType, lines }: Props) {
-  const removeLine = useRemovePlanLine(planIdOrSlug);
+export function PlanLines({ planId, planType, lines }: Props) {
+  const removeLine = useRemovePlanLine(planId);
 
   return (
     <div className="space-y-4">
       <div className="flex gap-3">
-        {(planType === 'query-based' || planType === 'mixed') && <PlanLineAddQuery planIdOrSlug={planIdOrSlug} />}
-        {(planType === 'item-based'  || planType === 'mixed') && <PlanLineAddItem  planIdOrSlug={planIdOrSlug} />}
+        {(planType === 'query-based' || planType === 'mixed') && <PlanLineAddQuery planId={planId} />}
+        {(planType === 'item-based'  || planType === 'mixed') && <PlanLineAddItem  planId={planId} />}
       </div>
 
       <div className="divide-y rounded border">

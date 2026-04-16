@@ -36,9 +36,9 @@ export function PlansListPage() {
               <Card key={p.id}>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>
-                    <a className="hover:underline" href={`/plans/${p.slug}`}>{p.name}</a>
+                    <a className="hover:underline" href={`/plans/${p.id}`}>{p.name}</a>
                   </CardTitle>
-                  <Button variant="ghost" size="sm" onClick={() => void del.mutateAsync(p.slug)}>Delete</Button>
+                  <Button variant="ghost" size="sm" onClick={() => void del.mutateAsync(p.id)}>Delete</Button>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground">
                   {p.type} · {p.strategy} · {p.lineCount} line{p.lineCount === 1 ? '' : 's'}

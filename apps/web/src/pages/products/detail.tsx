@@ -4,8 +4,8 @@ import { useItem } from '../../hooks/use-item.js';
 import { ProductDetail } from '../../features/products/product-detail.js';
 
 export function ProductDetailPage() {
-  const { idOrSlug } = useParams({ from: '/products/$idOrSlug' });
-  const { data, isLoading, error } = useItem(idOrSlug);
+  const { id } = useParams({ from: '/products/$id' });
+  const { data, isLoading, error } = useItem(id);
 
   if (isLoading) {
     return (

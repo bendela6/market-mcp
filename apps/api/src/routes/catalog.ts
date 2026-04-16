@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import * as v from 'valibot';
 import {
   CatalogStatsResponseSchema,
-  IdOrSlugParamsSchema,
+  IdParamsSchema,
   ItemQueryBodySchema,
   ROUTES,
   type CatalogStatsResponse,
@@ -30,10 +30,10 @@ export function catalogRoutes(catalog: CatalogService, embedder: Embedder): Fast
       return response;
     });
 
-    app.get('/v1/catalog/items/:idOrSlug', async (request, reply) => {
-      const parsed = v.safeParse(IdOrSlugParamsSchema, request.params);
+    app.get('/v1/catalog/items/:id', async (request, reply) => {
+      const parsed = v.safeParse(IdParamsSchema, request.params);
       if (!parsed.success) { reply.code(400).send({ error: 'invalid params' }); return; }
-      const item = await catalog.getItemByIdOrSlug(parsed.output.idOrSlug);
+      const item = await catalog.getItemById(parsed.output.id);
       if (!item) { reply.code(404).send({ error: 'not found' }); return; }
       const response: GetItemResponse = { item };
       return response;

@@ -10,15 +10,15 @@ function formatMinor(minor: number, currency: string): string {
   return `${(minor / 100).toFixed(2)} ${currency}`;
 }
 
-export function PlanLineAddItem({ planIdOrSlug }: { planIdOrSlug: string }) {
+export function PlanLineAddItem({ planId }: { planId: string }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [qty, setQty] = useState(1);
   const results = useItemsQuery({ skip: 0, take: 20, q: q.length > 0 ? q : undefined });
-  const add = useAddPlanLine(planIdOrSlug);
+  const add = useAddPlanLine(planId);
 
-  const pick = async (itemSlug: string) => {
-    await add.mutateAsync({ kind: 'item', itemIdOrSlug: itemSlug, quantity: qty });
+  const pick = async (itemId: string) => {
+    await add.mutateAsync({ kind: 'item', itemId, quantity: qty });
     setOpen(false);
     setQ('');
     setQty(1);
@@ -43,7 +43,7 @@ export function PlanLineAddItem({ planIdOrSlug }: { planIdOrSlug: string }) {
               key={it.id}
               type="button"
               className="flex w-full items-center justify-between rounded border p-3 text-left hover:bg-muted"
-              onClick={() => void pick(it.slug)}
+              onClick={() => void pick(it.id)}
             >
               <div>
                 <div className="font-medium">{it.name}</div>

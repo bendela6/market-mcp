@@ -3,7 +3,8 @@ import * as v from 'valibot';
 import {
   AddPlanLineBodySchema,
   CreatePlanBodySchema,
-  IdOrSlugParamsSchema,
+  IdParamsSchema,
+  LineIdParamsSchema,
   PlanQueryBodySchema,
   ROUTES,
   UpdatePlanBodySchema,
@@ -14,11 +15,6 @@ import {
 } from '@market/contracts';
 import type { PlansService } from '../services/plans.js';
 import { NotFoundError, ValidationError } from '../services/plans.js';
-
-const LineIdParams = v.object({
-  idOrSlug: v.pipe(v.string(), v.minLength(1)),
-  lineId: v.pipe(v.string(), v.minLength(1)),
-});
 
 export function plansRoutes(plansSvc: PlansService): FastifyPluginAsync {
   return async (app) => {
@@ -47,11 +43,11 @@ export function plansRoutes(plansSvc: PlansService): FastifyPluginAsync {
       return plan;
     });
 
-    app.get('/v1/plans/:idOrSlug', { preHandler }, async (request, reply) => {
-      const parsed = v.safeParse(IdOrSlugParamsSchema, request.params);
+    app.get('/v1/plans/:id', { preHandler }, async (request, reply) => {
+      const parsed = v.safeParse(IdParamsSchema, request.params);
       if (!parsed.success) { reply.code(400).send({ error: 'invalid params' }); return; }
       try {
-        const detail: PlanDetail = await plansSvc.getDetail(request.userId!, parsed.output.idOrSlug);
+        const detail: PlanDetail = await plansSvc.getDetail(request.userId!, parsed.output.id);
         return detail;
       } catch (e) {
         if (e instanceof NotFoundError) { reply.code(404).send({ error: 'not found' }); return; }
@@ -59,24 +55,24 @@ export function plansRoutes(plansSvc: PlansService): FastifyPluginAsync {
       }
     });
 
-    app.patch('/v1/plans/:idOrSlug', { preHandler }, async (request, reply) => {
-      const p = v.safeParse(IdOrSlugParamsSchema, request.params);
+    app.patch('/v1/plans/:id', { preHandler }, async (request, reply) => {
+      const p = v.safeParse(IdParamsSchema, request.params);
       if (!p.success) { reply.code(400).send({ error: 'invalid params' }); return; }
       const b = v.safeParse(UpdatePlanBodySchema, request.body);
       if (!b.success) { reply.code(400).send({ error: 'invalid body', issues: b.issues }); return; }
       try {
-        return await plansSvc.update(request.userId!, p.output.idOrSlug, b.output);
+        return await plansSvc.update(request.userId!, p.output.id, b.output);
       } catch (e) {
         if (e instanceof NotFoundError) { reply.code(404).send({ error: 'not found' }); return; }
         throw e;
       }
     });
 
-    app.delete('/v1/plans/:idOrSlug', { preHandler }, async (request, reply) => {
-      const p = v.safeParse(IdOrSlugParamsSchema, request.params);
+    app.delete('/v1/plans/:id', { preHandler }, async (request, reply) => {
+      const p = v.safeParse(IdParamsSchema, request.params);
       if (!p.success) { reply.code(400).send({ error: 'invalid params' }); return; }
       try {
-        await plansSvc.remove(request.userId!, p.output.idOrSlug);
+        await plansSvc.remove(request.userId!, p.output.id);
         reply.code(204).send();
       } catch (e) {
         if (e instanceof NotFoundError) { reply.code(404).send({ error: 'not found' }); return; }
@@ -84,13 +80,13 @@ export function plansRoutes(plansSvc: PlansService): FastifyPluginAsync {
       }
     });
 
-    app.post('/v1/plans/:idOrSlug/lines', { preHandler }, async (request, reply) => {
-      const p = v.safeParse(IdOrSlugParamsSchema, request.params);
+    app.post('/v1/plans/:id/lines', { preHandler }, async (request, reply) => {
+      const p = v.safeParse(IdParamsSchema, request.params);
       if (!p.success) { reply.code(400).send({ error: 'invalid params' }); return; }
       const b = v.safeParse(AddPlanLineBodySchema, request.body);
       if (!b.success) { reply.code(400).send({ error: 'invalid body', issues: b.issues }); return; }
       try {
-        return await plansSvc.addLine(request.userId!, p.output.idOrSlug, b.output);
+        return await plansSvc.addLine(request.userId!, p.output.id, b.output);
       } catch (e) {
         if (e instanceof NotFoundError) { reply.code(404).send({ error: 'not found' }); return; }
         if (e instanceof ValidationError) { reply.code(400).send({ error: e.message }); return; }
@@ -98,13 +94,13 @@ export function plansRoutes(plansSvc: PlansService): FastifyPluginAsync {
       }
     });
 
-    app.patch('/v1/plans/:idOrSlug/lines/:lineId', { preHandler }, async (request, reply) => {
-      const p = v.safeParse(LineIdParams, request.params);
+    app.patch('/v1/plans/:id/lines/:lineId', { preHandler }, async (request, reply) => {
+      const p = v.safeParse(LineIdParamsSchema, request.params);
       if (!p.success) { reply.code(400).send({ error: 'invalid params' }); return; }
       const b = v.safeParse(UpdatePlanLineBodySchema, request.body);
       if (!b.success) { reply.code(400).send({ error: 'invalid body', issues: b.issues }); return; }
       try {
-        return await plansSvc.updateLine(request.userId!, p.output.idOrSlug, p.output.lineId, b.output);
+        return await plansSvc.updateLine(request.userId!, p.output.id, p.output.lineId, b.output);
       } catch (e) {
         if (e instanceof NotFoundError) { reply.code(404).send({ error: 'not found' }); return; }
         if (e instanceof ValidationError) { reply.code(400).send({ error: e.message }); return; }
@@ -112,11 +108,11 @@ export function plansRoutes(plansSvc: PlansService): FastifyPluginAsync {
       }
     });
 
-    app.delete('/v1/plans/:idOrSlug/lines/:lineId', { preHandler }, async (request, reply) => {
-      const p = v.safeParse(LineIdParams, request.params);
+    app.delete('/v1/plans/:id/lines/:lineId', { preHandler }, async (request, reply) => {
+      const p = v.safeParse(LineIdParamsSchema, request.params);
       if (!p.success) { reply.code(400).send({ error: 'invalid params' }); return; }
       try {
-        await plansSvc.removeLine(request.userId!, p.output.idOrSlug, p.output.lineId);
+        await plansSvc.removeLine(request.userId!, p.output.id, p.output.lineId);
         reply.code(204).send();
       } catch (e) {
         if (e instanceof NotFoundError) { reply.code(404).send({ error: 'not found' }); return; }
@@ -124,11 +120,11 @@ export function plansRoutes(plansSvc: PlansService): FastifyPluginAsync {
       }
     });
 
-    app.post('/v1/plans/:idOrSlug/compute', { preHandler }, async (request, reply) => {
-      const p = v.safeParse(IdOrSlugParamsSchema, request.params);
+    app.post('/v1/plans/:id/compute', { preHandler }, async (request, reply) => {
+      const p = v.safeParse(IdParamsSchema, request.params);
       if (!p.success) { reply.code(400).send({ error: 'invalid params' }); return; }
       try {
-        const resp: ComputePlanResponse = await plansSvc.compute(request.userId!, p.output.idOrSlug);
+        const resp: ComputePlanResponse = await plansSvc.compute(request.userId!, p.output.id);
         return resp;
       } catch (e) {
         if (e instanceof NotFoundError) { reply.code(404).send({ error: 'not found' }); return; }

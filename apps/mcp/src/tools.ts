@@ -49,24 +49,24 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
   server.registerTool(
     'market_get_store',
     {
-      title: 'Get a store by id or slug',
-      description: 'Fetch a single store (and its assortment content).',
-      inputSchema: { idOrSlug: z.string().min(1) },
+      title: 'Get a store by id',
+      description: 'Fetch a single store (and its assortment content). Obtain the id from market_query_stores.',
+      inputSchema: { id: z.string().length(12) },
       annotations: { readOnlyHint: true },
     },
-    async ({ idOrSlug }) => ok(await api.get<GetStoreResponse>(ROUTES.stores.get(idOrSlug))),
+    async ({ id }) => ok(await api.get<GetStoreResponse>(ROUTES.stores.get(id))),
   );
 
   server.registerTool(
     'market_refresh_assortment',
     {
       title: 'Refresh store assortment',
-      description: 'Trigger a live crawl of a store and persist results.',
-      inputSchema: { idOrSlug: z.string().min(1) },
+      description: 'Trigger a live crawl of a store and persist results. Obtain the id from market_query_stores.',
+      inputSchema: { id: z.string().length(12) },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     },
-    async ({ idOrSlug }) =>
-      ok(await api.post<RefreshAssortmentResponse>(ROUTES.stores.refreshAssortment(idOrSlug), {})),
+    async ({ id }) =>
+      ok(await api.post<RefreshAssortmentResponse>(ROUTES.stores.refreshAssortment(id), {})),
   );
 
   server.registerTool(
@@ -93,7 +93,7 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
     'market_query_items',
     {
       title: 'Query catalog items',
-      description: 'List/search items with pagination, filters, sort.',
+      description: 'List/search items with pagination, filters, sort. storeId/categoryId are short ids.',
       inputSchema: {
         skip: z.number().int().min(0).optional(),
         take: z.number().int().min(1).max(500).optional(),
@@ -101,8 +101,8 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
         sort: z.array(SortItem).optional(),
         mode: z.enum(['keyword', 'semantic', 'hybrid']).optional(),
         vendor: VendorEnum.optional(),
-        storeIdOrSlug: z.string().optional(),
-        categoryIdOrSlug: z.string().optional(),
+        storeId: z.string().length(12).optional(),
+        categoryId: z.string().length(12).optional(),
         minPriceMinor: z.number().int().min(0).optional(),
         maxPriceMinor: z.number().int().min(0).optional(),
         available: z.boolean().optional(),
@@ -118,12 +118,12 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
   server.registerTool(
     'market_get_item',
     {
-      title: 'Get a catalog item by id or slug',
-      description: 'Fetch a single item.',
-      inputSchema: { idOrSlug: z.string().min(1) },
+      title: 'Get a catalog item by id',
+      description: 'Fetch a single item. Obtain the id from market_query_items.',
+      inputSchema: { id: z.string().length(12) },
       annotations: { readOnlyHint: true },
     },
-    async ({ idOrSlug }) => ok(await api.get<GetItemResponse>(ROUTES.catalog.itemGet(idOrSlug))),
+    async ({ id }) => ok(await api.get<GetItemResponse>(ROUTES.catalog.itemGet(id))),
   );
 
   server.registerTool(
@@ -162,13 +162,13 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
     'market_create_plan',
     {
       title: 'Create a plan',
-      description: 'Create a new persisted plan for the configured user.',
+      description: 'Create a new persisted plan. storeIds is a filter list of 12-char store ids.',
       inputSchema: {
         name: z.string().min(1),
         type: z.enum(['mixed', 'item-based', 'query-based']),
         strategy: z.enum(['cheapest-per-item', 'single-store', 'both']),
         vendor: VendorEnum.optional(),
-        storeSlugs: z.array(z.string()).optional(),
+        storeIds: z.array(z.string().length(12)).optional(),
         includeOffline: z.boolean().optional(),
       },
     },
@@ -182,11 +182,11 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
     'market_get_plan',
     {
       title: 'Get a plan',
-      description: 'Fetch a plan and its lines.',
-      inputSchema: { idOrSlug: z.string().min(1) },
+      description: 'Fetch a plan and its lines. Obtain the id from market_query_plans.',
+      inputSchema: { id: z.string().length(12) },
       annotations: { readOnlyHint: true },
     },
-    async ({ idOrSlug }) => ok(await api.get<PlanDetail>(ROUTES.plans.get(idOrSlug), mkUser())),
+    async ({ id }) => ok(await api.get<PlanDetail>(ROUTES.plans.get(id), mkUser())),
   );
 
   server.registerTool(
@@ -195,17 +195,17 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
       title: 'Update plan metadata',
       description: 'Update name, strategy, filters; type is immutable.',
       inputSchema: {
-        idOrSlug: z.string().min(1),
+        id: z.string().length(12),
         name: z.string().min(1).optional(),
         strategy: z.enum(['cheapest-per-item', 'single-store', 'both']).optional(),
         vendor: VendorEnum.optional(),
-        storeSlugs: z.array(z.string()).optional(),
+        storeIds: z.array(z.string().length(12)).optional(),
         includeOffline: z.boolean().optional(),
       },
     },
-    async ({ idOrSlug, ...rest }) => {
+    async ({ id, ...rest }) => {
       const body = rest as UpdatePlanBody;
-      return ok(await api.patch<Plan>(ROUTES.plans.update(idOrSlug), body, mkUser()));
+      return ok(await api.patch<Plan>(ROUTES.plans.update(id), body, mkUser()));
     },
   );
 
@@ -214,12 +214,12 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
     {
       title: 'Delete a plan',
       description: 'Delete a plan and its lines.',
-      inputSchema: { idOrSlug: z.string().min(1) },
+      inputSchema: { id: z.string().length(12) },
       annotations: { destructiveHint: true },
     },
-    async ({ idOrSlug }) => {
-      await api.del(ROUTES.plans.delete(idOrSlug), mkUser());
-      return ok({ deleted: idOrSlug });
+    async ({ id }) => {
+      await api.del(ROUTES.plans.delete(id), mkUser());
+      return ok({ deleted: id });
     },
   );
 
@@ -227,18 +227,18 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
     'market_add_plan_line',
     {
       title: 'Add a line to a plan',
-      description: 'Add a query line or lock in a specific item.',
+      description: 'Add a query line or lock in a specific item. itemId is a 12-char id from market_query_items.',
       inputSchema: {
-        idOrSlug: z.string().min(1),
+        id: z.string().length(12),
         kind: z.enum(['query', 'item']),
         query: z.string().optional(),
-        itemIdOrSlug: z.string().optional(),
+        itemId: z.string().length(12).optional(),
         quantity: z.number().int().min(1).optional(),
       },
     },
-    async ({ idOrSlug, ...rest }) => {
+    async ({ id, ...rest }) => {
       const body = rest as AddPlanLineBody;
-      return ok(await api.post(ROUTES.plans.lines.add(idOrSlug), body, mkUser()));
+      return ok(await api.post(ROUTES.plans.lines.add(id), body, mkUser()));
     },
   );
 
@@ -248,15 +248,15 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
       title: 'Update a plan line',
       description: 'Update quantity or the query text on a query line.',
       inputSchema: {
-        idOrSlug: z.string().min(1),
-        lineId: z.string().min(1),
+        id: z.string().length(12),
+        lineId: z.string().length(12),
         quantity: z.number().int().min(1).optional(),
         query: z.string().optional(),
       },
     },
-    async ({ idOrSlug, lineId, ...rest }) => {
+    async ({ id, lineId, ...rest }) => {
       const body = rest as UpdatePlanLineBody;
-      return ok(await api.patch(ROUTES.plans.lines.update(idOrSlug, lineId), body, mkUser()));
+      return ok(await api.patch(ROUTES.plans.lines.update(id, lineId), body, mkUser()));
     },
   );
 
@@ -265,11 +265,11 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
     {
       title: 'Remove a plan line',
       description: 'Delete a single line from a plan.',
-      inputSchema: { idOrSlug: z.string().min(1), lineId: z.string().min(1) },
+      inputSchema: { id: z.string().length(12), lineId: z.string().length(12) },
       annotations: { destructiveHint: true },
     },
-    async ({ idOrSlug, lineId }) => {
-      await api.del(ROUTES.plans.lines.delete(idOrSlug, lineId), mkUser());
+    async ({ id, lineId }) => {
+      await api.del(ROUTES.plans.lines.delete(id, lineId), mkUser());
       return ok({ deleted: lineId });
     },
   );
@@ -279,10 +279,10 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
     {
       title: 'Compute plan',
       description: 'Run the strategy against the stored lines and return the plan result.',
-      inputSchema: { idOrSlug: z.string().min(1) },
+      inputSchema: { id: z.string().length(12) },
       annotations: { readOnlyHint: true },
     },
-    async ({ idOrSlug }) =>
-      ok(await api.post<ComputePlanResponse>(ROUTES.plans.compute(idOrSlug), {}, mkUser())),
+    async ({ id }) =>
+      ok(await api.post<ComputePlanResponse>(ROUTES.plans.compute(id), {}, mkUser())),
   );
 }

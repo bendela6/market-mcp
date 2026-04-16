@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import * as v from 'valibot';
 import {
-  IdOrSlugParamsSchema,
+  IdParamsSchema,
   ROUTES,
   StoreQueryBodySchema,
   type GetStoreResponse,
@@ -37,10 +37,10 @@ export function storesRoutes(
       return response;
     });
 
-    app.get('/v1/stores/:idOrSlug', async (request, reply) => {
-      const parsed = v.safeParse(IdOrSlugParamsSchema, request.params);
+    app.get('/v1/stores/:id', async (request, reply) => {
+      const parsed = v.safeParse(IdParamsSchema, request.params);
       if (!parsed.success) { reply.code(400).send({ error: 'invalid params' }); return; }
-      const row = await storesSvc.getByIdOrSlug(parsed.output.idOrSlug);
+      const row = await storesSvc.getById(parsed.output.id);
       if (!row) { reply.code(404).send({ error: 'not found' }); return; }
       const response: GetStoreResponse = {
         store: {
@@ -62,11 +62,11 @@ export function storesRoutes(
     });
 
     app.post(
-      '/v1/stores/:idOrSlug/refresh-assortment',
+      '/v1/stores/:id/refresh-assortment',
       async (request, reply) => {
-        const parsed = v.safeParse(IdOrSlugParamsSchema, request.params);
+        const parsed = v.safeParse(IdParamsSchema, request.params);
         if (!parsed.success) { reply.code(400).send({ error: 'invalid params' }); return; }
-        const storeRow = await storesSvc.getByIdOrSlug(parsed.output.idOrSlug);
+        const storeRow = await storesSvc.getById(parsed.output.id);
         if (!storeRow) { reply.code(404).send({ error: 'not found' }); return; }
 
         const vendor = registry.get(storeRow.vendor);

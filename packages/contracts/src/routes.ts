@@ -1,26 +1,26 @@
 export const ROUTES = {
   stores: {
     query:             '/v1/stores/query',
-    get:               (idOrSlug: string) => `/v1/stores/${idOrSlug}`,
-    refreshAssortment: (idOrSlug: string) => `/v1/stores/${idOrSlug}/refresh-assortment`,
+    get:               (id: string) => `/v1/stores/${id}`,
+    refreshAssortment: (id: string) => `/v1/stores/${id}/refresh-assortment`,
   },
   catalog: {
     itemQuery: '/v1/catalog/items/query',
-    itemGet:   (idOrSlug: string) => `/v1/catalog/items/${idOrSlug}`,
+    itemGet:   (id: string) => `/v1/catalog/items/${id}`,
     stats:     '/v1/catalog/stats',
   },
   plans: {
     query:   '/v1/plans/query',
     create:  '/v1/plans',
-    get:     (idOrSlug: string) => `/v1/plans/${idOrSlug}`,
-    update:  (idOrSlug: string) => `/v1/plans/${idOrSlug}`,
-    delete:  (idOrSlug: string) => `/v1/plans/${idOrSlug}`,
+    get:     (id: string) => `/v1/plans/${id}`,
+    update:  (id: string) => `/v1/plans/${id}`,
+    delete:  (id: string) => `/v1/plans/${id}`,
     lines: {
-      add:    (idOrSlug: string) => `/v1/plans/${idOrSlug}/lines`,
-      update: (idOrSlug: string, lineId: string) => `/v1/plans/${idOrSlug}/lines/${lineId}`,
-      delete: (idOrSlug: string, lineId: string) => `/v1/plans/${idOrSlug}/lines/${lineId}`,
+      add:    (id: string) => `/v1/plans/${id}/lines`,
+      update: (id: string, lineId: string) => `/v1/plans/${id}/lines/${lineId}`,
+      delete: (id: string, lineId: string) => `/v1/plans/${id}/lines/${lineId}`,
     },
-    compute: (idOrSlug: string) => `/v1/plans/${idOrSlug}/compute`,
+    compute: (id: string) => `/v1/plans/${id}/compute`,
   },
   users: {
     create: '/v1/users',
