@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { ROUTES } from '@market/contracts';
+import { API_PATHS, buildPath } from '@market/contracts';
 import type {
   AddPlanLineBody, CatalogStatsResponse, ComputePlanResponse, CreatePlanBody,
   GetItemResponse, GetStoreResponse, ItemQueryBody, ItemQueryResponse, Plan,
@@ -42,7 +42,7 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
     },
     async (input) => {
       const body: StoreQueryBody = input as StoreQueryBody;
-      return ok(await api.post<StoreQueryResponse>(ROUTES.stores.query, body));
+      return ok(await api.post<StoreQueryResponse>(API_PATHS.stores.query, body));
     },
   );
 
@@ -54,7 +54,7 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
       inputSchema: { id: z.string().length(12) },
       annotations: { readOnlyHint: true },
     },
-    async ({ id }) => ok(await api.get<GetStoreResponse>(ROUTES.stores.get(id))),
+    async ({ id }) => ok(await api.get<GetStoreResponse>(buildPath(API_PATHS.stores.get, { id }))),
   );
 
   server.registerTool(
@@ -66,7 +66,7 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     },
     async ({ id }) =>
-      ok(await api.post<RefreshAssortmentResponse>(ROUTES.stores.refreshAssortment(id), {})),
+      ok(await api.post<RefreshAssortmentResponse>(buildPath(API_PATHS.stores.refreshAssortment, { id }), {})),
   );
 
   server.registerTool(
@@ -84,7 +84,7 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
     async (input) => {
       const { limit, ...rest } = input;
       const body = { ...rest, take: limit ?? 200 } as StoreQueryBody;
-      return ok(await api.post<StoreQueryResponse>(ROUTES.stores.query, body));
+      return ok(await api.post<StoreQueryResponse>(API_PATHS.stores.query, body));
     },
   );
 
@@ -111,7 +111,7 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
     },
     async (input) => {
       const body: ItemQueryBody = input as ItemQueryBody;
-      return ok(await api.post<ItemQueryResponse>(ROUTES.catalog.itemQuery, body));
+      return ok(await api.post<ItemQueryResponse>(API_PATHS.catalog.itemQuery, body));
     },
   );
 
@@ -123,7 +123,7 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
       inputSchema: { id: z.string().length(12) },
       annotations: { readOnlyHint: true },
     },
-    async ({ id }) => ok(await api.get<GetItemResponse>(ROUTES.catalog.itemGet(id))),
+    async ({ id }) => ok(await api.get<GetItemResponse>(buildPath(API_PATHS.catalog.itemGet, { id }))),
   );
 
   server.registerTool(
@@ -134,7 +134,7 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
       inputSchema: {},
       annotations: { readOnlyHint: true },
     },
-    async () => ok(await api.get<CatalogStatsResponse>(ROUTES.catalog.stats)),
+    async () => ok(await api.get<CatalogStatsResponse>(API_PATHS.catalog.stats)),
   );
 
   // --- plans ---
@@ -154,7 +154,7 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
     },
     async (input) => {
       const body: PlanQueryBody = input as PlanQueryBody;
-      return ok(await api.post<PlanQueryResponse>(ROUTES.plans.query, body, mkUser()));
+      return ok(await api.post<PlanQueryResponse>(API_PATHS.plans.query, body, mkUser()));
     },
   );
 
@@ -174,7 +174,7 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
     },
     async (input) => {
       const body = input as CreatePlanBody;
-      return ok(await api.post<Plan>(ROUTES.plans.create, body, mkUser()));
+      return ok(await api.post<Plan>(API_PATHS.plans.create, body, mkUser()));
     },
   );
 
@@ -186,7 +186,7 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
       inputSchema: { id: z.string().length(12) },
       annotations: { readOnlyHint: true },
     },
-    async ({ id }) => ok(await api.get<PlanDetail>(ROUTES.plans.get(id), mkUser())),
+    async ({ id }) => ok(await api.get<PlanDetail>(buildPath(API_PATHS.plans.get, { id }), mkUser())),
   );
 
   server.registerTool(
@@ -205,7 +205,7 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
     },
     async ({ id, ...rest }) => {
       const body = rest as UpdatePlanBody;
-      return ok(await api.patch<Plan>(ROUTES.plans.update(id), body, mkUser()));
+      return ok(await api.patch<Plan>(buildPath(API_PATHS.plans.update, { id }), body, mkUser()));
     },
   );
 
@@ -218,7 +218,7 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
       annotations: { destructiveHint: true },
     },
     async ({ id }) => {
-      await api.del(ROUTES.plans.delete(id), mkUser());
+      await api.del(buildPath(API_PATHS.plans.delete, { id }), mkUser());
       return ok({ deleted: id });
     },
   );
@@ -238,7 +238,7 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
     },
     async ({ id, ...rest }) => {
       const body = rest as AddPlanLineBody;
-      return ok(await api.post(ROUTES.plans.lines.add(id), body, mkUser()));
+      return ok(await api.post(buildPath(API_PATHS.plans.addLine, { id }), body, mkUser()));
     },
   );
 
@@ -256,7 +256,7 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
     },
     async ({ id, lineId, ...rest }) => {
       const body = rest as UpdatePlanLineBody;
-      return ok(await api.patch(ROUTES.plans.lines.update(id, lineId), body, mkUser()));
+      return ok(await api.patch(buildPath(API_PATHS.plans.updateLine, { id, lineId }), body, mkUser()));
     },
   );
 
@@ -269,7 +269,7 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
       annotations: { destructiveHint: true },
     },
     async ({ id, lineId }) => {
-      await api.del(ROUTES.plans.lines.delete(id, lineId), mkUser());
+      await api.del(buildPath(API_PATHS.plans.deleteLine, { id, lineId }), mkUser());
       return ok({ deleted: lineId });
     },
   );
@@ -283,6 +283,6 @@ export function registerMarketTools(server: McpServer, api: ApiClient): void {
       annotations: { readOnlyHint: true },
     },
     async ({ id }) =>
-      ok(await api.post<ComputePlanResponse>(ROUTES.plans.compute(id), {}, mkUser())),
+      ok(await api.post<ComputePlanResponse>(buildPath(API_PATHS.plans.compute, { id }), {}, mkUser())),
   );
 }
