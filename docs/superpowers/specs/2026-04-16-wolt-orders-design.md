@@ -1,7 +1,7 @@
 # Wolt order history integration — design
 
 Date: 2026-04-16
-Status: Draft
+Status: Draft (revised after id-everywhere refactor on main)
 
 ## Goal
 
@@ -59,15 +59,21 @@ client.
 
 ## Database schema
 
-Three new tables plus three new columns on `users`.
+Three new tables (`wolt_orders`, `wolt_order_items`, `vendor_sync_jobs`),
+two new Postgres enums (`vendor_sync_job_status`, `vendor_sync_job_mode`),
+and three new nullable columns on the existing `users` table.
+
+All new tables follow the repo's id-everywhere convention: primary keys
+are `varchar(12)` populated via the `shortId()` helper (`nanoid(12)`),
+not `uuid`. FK columns use `varchar('*_id', { length: 12 })`.
 
 ### `users` — new columns
 
-```sql
-ALTER TABLE users
-  ADD COLUMN wolt_access_token_enc  text,
-  ADD COLUMN wolt_refresh_token_enc text,
-  ADD COLUMN wolt_connected_at      timestamptz;
+```ts
+// apps/api/src/db/schema.ts — add three columns to the existing users table
+woltAccessTokenEnc:  text('wolt_access_token_enc'),
+woltRefreshTokenEnc: text('wolt_refresh_token_enc'),
+woltConnectedAt:     timestamp('wolt_connected_at', { withTimezone: true }),
 ```
 
 - All three are nullable. `wolt_connected_at IS NOT NULL` is the sole
@@ -77,79 +83,93 @@ ALTER TABLE users
 
 ### `wolt_orders`
 
-```sql
-CREATE TABLE wolt_orders (
-  id                   uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id              uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  wolt_order_id        text        NOT NULL,
-  placed_at            timestamptz NOT NULL,
-  delivered_at         timestamptz,
-  status               text        NOT NULL,
-  venue_vendor_slug    text        NOT NULL,
-  venue_name           text        NOT NULL,
-  venue_product_line   product_line,
-  store_id             uuid        REFERENCES stores(id) ON DELETE SET NULL,
-  total_minor          integer,
-  currency             text        NOT NULL,
-  details_scraped_at   timestamptz,
-  raw_summary          jsonb       NOT NULL,
-  raw_details          jsonb,
-  synced_at            timestamptz NOT NULL DEFAULT now(),
-
-  CONSTRAINT wolt_orders_user_wolt_order_uq UNIQUE (user_id, wolt_order_id)
-);
-
-CREATE INDEX wolt_orders_user_placed_ix ON wolt_orders (user_id, placed_at DESC);
-CREATE INDEX wolt_orders_user_venue_ix  ON wolt_orders (user_id, venue_vendor_slug);
-CREATE INDEX wolt_orders_user_status_ix ON wolt_orders (user_id, status);
+```ts
+export const woltOrders = pgTable('wolt_orders', {
+  id:                 shortId().primaryKey(),
+  userId:             varchar('user_id', { length: 12 })
+                        .notNull()
+                        .references(() => users.id, { onDelete: 'cascade' }),
+  woltOrderId:        text('wolt_order_id').notNull(),
+  placedAt:           timestamp('placed_at', { withTimezone: true }).notNull(),
+  deliveredAt:        timestamp('delivered_at', { withTimezone: true }),
+  status:             text('status').notNull(),
+  venueVendorSlug:    text('venue_vendor_slug').notNull(),
+  venueName:          text('venue_name').notNull(),
+  venueProductLine:   productLine('venue_product_line'),
+  storeId:            varchar('store_id', { length: 12 })
+                        .references(() => stores.id, { onDelete: 'set null' }),
+  totalMinor:         integer('total_minor'),
+  currency:           text('currency').notNull(),
+  detailsScrapedAt:   timestamp('details_scraped_at', { withTimezone: true }),
+  rawSummary:         jsonb('raw_summary').notNull(),
+  rawDetails:         jsonb('raw_details'),
+  syncedAt:           timestamp('synced_at', { withTimezone: true })
+                        .defaultNow().notNull(),
+}, (t) => ({
+  userWoltOrderUq: uniqueIndex('wolt_orders_user_order_uq').on(t.userId, t.woltOrderId),
+  userPlacedIx:    index('wolt_orders_user_placed_ix').on(t.userId, t.placedAt),
+  userVenueIx:     index('wolt_orders_user_venue_ix').on(t.userId, t.venueVendorSlug),
+  userStatusIx:    index('wolt_orders_user_status_ix').on(t.userId, t.status),
+}));
 ```
 
 ### `wolt_order_items`
 
-```sql
-CREATE TABLE wolt_order_items (
-  id                uuid     PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id          uuid     NOT NULL REFERENCES wolt_orders(id) ON DELETE CASCADE,
-  wolt_item_id      text     NOT NULL,
-  name              text     NOT NULL,
-  quantity          numeric  NOT NULL,
-  unit_price_minor  integer,
-  total_minor       integer,
-  currency          text     NOT NULL,
-  image_url         text,
-  gtin              text,
-  item_id           uuid     REFERENCES items(id) ON DELETE SET NULL,
-  raw               jsonb    NOT NULL,
-
-  CONSTRAINT wolt_order_items_order_item_uq UNIQUE (order_id, wolt_item_id)
-);
-
-CREATE INDEX wolt_order_items_name_ix ON wolt_order_items (name);
+```ts
+export const woltOrderItems = pgTable('wolt_order_items', {
+  id:             shortId().primaryKey(),
+  orderId:        varchar('order_id', { length: 12 })
+                    .notNull()
+                    .references(() => woltOrders.id, { onDelete: 'cascade' }),
+  woltItemId:     text('wolt_item_id').notNull(),
+  name:           text('name').notNull(),
+  quantity:       numeric('quantity').notNull(),
+  unitPriceMinor: integer('unit_price_minor'),
+  totalMinor:     integer('total_minor'),
+  currency:       text('currency').notNull(),
+  imageUrl:       text('image_url'),
+  gtin:           text('gtin'),
+  itemId:         varchar('item_id', { length: 12 })
+                    .references(() => items.id, { onDelete: 'set null' }),
+  raw:            jsonb('raw').notNull(),
+}, (t) => ({
+  orderItemUq: uniqueIndex('wolt_order_items_order_item_uq').on(t.orderId, t.woltItemId),
+  nameIx:      index('wolt_order_items_name_ix').on(t.name),
+}));
 ```
 
 ### `vendor_sync_jobs`
 
-```sql
-CREATE TABLE vendor_sync_jobs (
-  id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id         uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  vendor          text        NOT NULL,
-  mode            text        NOT NULL,         -- 'latest' | 'full'
-  with_details    boolean     NOT NULL,
-  status          text        NOT NULL,         -- 'queued' | 'running' | 'succeeded' | 'failed'
-  started_at      timestamptz NOT NULL DEFAULT now(),
-  finished_at     timestamptz,
-  orders_seen     integer     NOT NULL DEFAULT 0,
-  orders_new      integer     NOT NULL DEFAULT 0,
-  orders_updated  integer     NOT NULL DEFAULT 0,
-  details_fetched integer     NOT NULL DEFAULT 0,
-  error_message   text
-);
+```ts
+export const vendorSyncJobStatus = pgEnum('vendor_sync_job_status',
+  ['queued', 'running', 'succeeded', 'failed']);
+export const vendorSyncJobMode = pgEnum('vendor_sync_job_mode',
+  ['latest', 'full']);
 
-CREATE INDEX vendor_sync_jobs_user_vendor_ix ON vendor_sync_jobs (user_id, vendor, started_at DESC);
+export const vendorSyncJobs = pgTable('vendor_sync_jobs', {
+  id:             shortId().primaryKey(),
+  userId:         varchar('user_id', { length: 12 })
+                    .notNull()
+                    .references(() => users.id, { onDelete: 'cascade' }),
+  vendor:         vendorId('vendor').notNull(),      // reuse existing enum
+  mode:           vendorSyncJobMode('mode').notNull(),
+  withDetails:    boolean('with_details').notNull(),
+  status:         vendorSyncJobStatus('status').notNull(),
+  startedAt:      timestamp('started_at', { withTimezone: true })
+                    .defaultNow().notNull(),
+  finishedAt:     timestamp('finished_at', { withTimezone: true }),
+  ordersSeen:     integer('orders_seen').notNull().default(0),
+  ordersNew:      integer('orders_new').notNull().default(0),
+  ordersUpdated:  integer('orders_updated').notNull().default(0),
+  detailsFetched: integer('details_fetched').notNull().default(0),
+  errorMessage:   text('error_message'),
+}, (t) => ({
+  userVendorIx: index('vendor_sync_jobs_user_vendor_ix')
+                  .on(t.userId, t.vendor, t.startedAt),
+}));
 ```
 
-Soft FKs (`wolt_orders.store_id`, `wolt_order_items.item_id`) let the
+Soft FKs (`woltOrders.storeId`, `woltOrderItems.itemId`) let the
 listing page join against our existing catalog for future past-purchase
 features. Null when no confident match.
 
@@ -299,7 +319,10 @@ GET    /me/orders/sync/:id
 New file `packages/contracts/src/orders.ts` with valibot schemas
 following the exact pattern of `stores.ts`: `OrderSchema`, `OrderItemSchema`,
 `OrderListQueryBodySchema`, `OrderListResponseSchema`, `SyncJobSchema`,
-`ConnectWoltBodySchema`, `WoltStatusSchema`. Route constants added to
+`ConnectWoltBodySchema`, `WoltStatusSchema`. All `id`, `userId`,
+`storeId`, `itemId`, `orderId` fields use `ShortIdSchema` from
+`common.ts` (12-char nanoid). Route path params with `:id` validate via
+`IdParamsSchema`. Route constants added to
 `packages/contracts/src/routes.ts`.
 
 ## Sync engine
